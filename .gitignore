@@ -26,7 +26,9 @@ local.properties
 /local.properties
 .env
 .env.*
+!.env.example
 *.env
+!.env.example
 debug.keystore
 *.keystore
 *.jks

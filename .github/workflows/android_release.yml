@@ -53,6 +53,18 @@ jobs:
       - name: Make Gradle Executable
         run: chmod +x gradlew || true
 
+      - name: Ensure Environment Configuration (.env.example)
+        run: |
+          if [ ! -f ".env.example" ]; then
+            echo "Creating fallback .env.example file..."
+            echo "# Placeholder environment configuration for build" > .env.example
+            echo "# GEMINI_API_KEY=MY_GEMINI_API_KEY" >> .env.example
+          fi
+          if [ ! -f ".env" ]; then
+            echo "Creating empty .env file..."
+            touch .env
+          fi
+
       - name: Decode Release Keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
