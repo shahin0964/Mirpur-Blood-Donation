@@ -600,6 +600,7 @@ fun MbdAuthenticatedShell(
                                 currentUserId = currentUserId,
                                 myDonorState = myDonorState,
                                 bloodRequestsState = bloodRequestsState,
+                                announcementsState = adminAnnouncementsState,
                                 onOpenDrawer = { scope.launch { drawerState.open() } },
                                 onToggleLanguage = { viewModel.toggleLanguage() },
                                 onNavigate = { viewModel.navigateTo(it) },
@@ -1064,7 +1065,7 @@ fun MbdAuthenticatedShell(
                                 onAdminCorrectDonorDates = { donorId, lastDate, lastTime, nextDate, type, customType, interval, ruleVer, count, wb, plt, pls, oth ->
                                     viewModel.adminCorrectDonorDates(donorId, lastDate, lastTime, nextDate, type, customType, interval, ruleVer, count, wb, plt, pls, oth)
                                 },
-                                onCreateAnnouncement = { title, msg, type, isEmerg -> viewModel.createBroadcastAnnouncement(title, msg, type, isEmerg) },
+                                onCreateAnnouncement = { title, msg, type, isEmerg, duration -> viewModel.createBroadcastAnnouncement(title, msg, type, isEmerg, duration) },
                                 onDeleteAnnouncement = { aId -> viewModel.deleteAnnouncement(aId) },
                                 onSaveAppConfig = { cfg -> viewModel.saveAppConfig(cfg) },
                                 onOpenDonorProfile = { donor -> viewModel.openDonorProfileDetails(donor) }

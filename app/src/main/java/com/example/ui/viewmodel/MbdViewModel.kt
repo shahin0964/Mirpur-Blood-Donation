@@ -189,6 +189,7 @@ class MbdViewModel(
 
     fun checkForAppUpdates() {
         viewModelScope.launch {
+            updateManager.resetDownloadState()
             val info = updateManager.checkGitHubUpdate()
             _updateInfo.value = info
         }
@@ -214,6 +215,9 @@ class MbdViewModel(
 
     private val _preselectedRequestDonor = MutableStateFlow<DonorProfile?>(null)
     val preselectedRequestDonor: StateFlow<DonorProfile?> = _preselectedRequestDonor.asStateFlow()
+
+    private val notifiedRequestIds = mutableSetOf<String>()
+    private val notifiedAnnouncementIds = mutableSetOf<String>()
 
     private val _guestEligibilityRules = MutableStateFlow<Map<String, EligibilityRule>>(DEFAULT_ELIGIBILITY_RULES)
 
@@ -759,7 +763,20 @@ class MbdViewModel(
         _guestBloodRequests.asStateFlow()
     } else {
         repository.observeCommunityBloodRequests()
-            .map<List<BloodRequest>, UiState<List<BloodRequest>>> { UiState.Success(it) }
+            .map<List<BloodRequest>, UiState<List<BloodRequest>>> { list ->
+                list.forEach { req ->
+                    if (req.id.isNotBlank() && req.id !in notifiedRequestIds) {
+                        val isRecent = req.createdAt?.let { (System.currentTimeMillis() - it.toDate().time) < 120_000 } ?: false
+                        if (isRecent) {
+                            com.example.ui.util.MbdNotificationHelper.showBloodRequestNotification(
+                                application, req.id, req.bloodGroup, req.hospitalName, req.location, req.requesterName, _language.value == "bn"
+                            )
+                        }
+                        notifiedRequestIds.add(req.id)
+                    }
+                }
+                UiState.Success(list)
+            }
             .catch { error ->
                 Log.w(TAG, "Error observing blood requests", error)
                 emit(UiState.Error(error.localizedMessage ?: "Failed to load blood requests"))
@@ -1068,9 +1085,33 @@ class MbdViewModel(
         _guestAnnouncements.asStateFlow()
     } else {
         repository.observeAnnouncements()
-            .map<List<AdminAnnouncement>, UiState<List<AdminAnnouncement>>> { UiState.Success(it) }
-            .catch { emit(UiState.Success(emptyList())) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), UiState.Loading)
+            .map<List<AdminAnnouncement>, UiState<List<AdminAnnouncement>>> { list ->
+                val now = Timestamp.now()
+                val activeList = list.filter { ann ->
+                    ann.isActive && (ann.expiresAt == null || ann.expiresAt!! > now)
+                }
+                activeList.forEach { ann ->
+                    if (ann.id.isNotBlank() && ann.id !in notifiedAnnouncementIds) {
+                        val isRecent = ann.createdAt?.let { (System.currentTimeMillis() - it.toDate().time) < 120_000 } ?: false
+                        if (isRecent) {
+                            com.example.ui.util.MbdNotificationHelper.showAdminAnnouncementNotification(
+                                application, ann.id, ann.title, ann.message, ann.isEmergency, _language.value == "bn"
+                            )
+                        }
+                        notifiedAnnouncementIds.add(ann.id)
+                    }
+                }
+                UiState.Success(activeList)
+            }
+            .catch { error ->
+                Log.w(TAG, "Error observing announcements", error)
+                emit(UiState.Success(emptyList()))
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+                initialValue = UiState.Loading
+            )
     }
 
     val appConfigState: StateFlow<AppConfig> = if (isGuest) {
@@ -2907,23 +2948,34 @@ class MbdViewModel(
         }
     }
 
-    fun createBroadcastAnnouncement(title: String, message: String, type: String, isEmergency: Boolean) {
+    fun createBroadcastAnnouncement(title: String, message: String, type: String, isEmergency: Boolean, durationDays: Int) {
         val trimmedTitle = title.trim()
         val trimmedMsg = message.trim()
+        val expiresAt = if (durationDays > 0) {
+            Timestamp(Date(System.currentTimeMillis() + durationDays * 24L * 3600 * 1000L))
+        } else {
+            null
+        }
         val announcement = AdminAnnouncement(
             title = trimmedTitle,
             message = trimmedMsg,
             type = type,
             isEmergency = isEmergency,
             isActive = true,
-            createdByEmail = defaultEmail
+            createdByEmail = defaultEmail,
+            durationDays = durationDays,
+            expiresAt = expiresAt
         )
         if (isGuest) {
             val current = (_guestAnnouncements.value as? UiState.Success)?.data.orEmpty()
-            _guestAnnouncements.value = UiState.Success(
-                listOf(announcement.copy(id = UUID.randomUUID().toString(), createdAt = Timestamp.now())) + current
-            )
+            val created = announcement.copy(id = UUID.randomUUID().toString(), createdAt = Timestamp.now())
+            _guestAnnouncements.value = UiState.Success(listOf(created) + current)
             _statusMessage.value = if (_language.value == "bn") "ঘোষণা সফলভাবে প্রচার করা হয়েছে" else "Broadcast published successfully"
+            
+            // Show immediate notification for creator in guest mode
+            com.example.ui.util.MbdNotificationHelper.showAdminAnnouncementNotification(
+                application, created.id, created.title, created.message, created.isEmergency, _language.value == "bn"
+            )
             return
         }
         viewModelScope.launch {

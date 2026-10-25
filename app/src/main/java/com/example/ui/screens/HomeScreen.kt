@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -71,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.AdminAnnouncement
 import com.example.data.model.BloodRequest
 import com.example.data.model.DonorProfile
 import com.example.ui.components.DonationCountdownEngine
@@ -97,6 +99,7 @@ fun HomeScreen(
     currentUserId: String,
     myDonorState: UiState<DonorProfile?>,
     bloodRequestsState: UiState<List<BloodRequest>>,
+    announcementsState: UiState<List<AdminAnnouncement>>,
     onOpenDrawer: () -> Unit,
     onToggleLanguage: () -> Unit,
     onNavigate: (MbdScreen) -> Unit,
@@ -211,13 +214,26 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // 1. Hero Banner Card ("Be a Hero / Donate Blood") matching Reference Screen 2
+            // 1. Admin Announcements or Standard Hero Banner
+            val announcements = (announcementsState as? UiState.Success)?.data.orEmpty()
+            val emergencyAnn = announcements.firstOrNull { it.isEmergency }
+            val latestAnn = announcements.firstOrNull()
+
             item {
-                HeroDonateBannerCard(
-                    strings = strings,
-                    myDonorProfile = (myDonorState as? UiState.Success)?.data,
-                    onDonateNowClick = { onNavigate(MbdScreen.PROFILE) }
-                )
+                if (emergencyAnn != null || latestAnn != null) {
+                    val ann = emergencyAnn ?: latestAnn!!
+                    AdminAnnouncementHeroCard(
+                        announcement = ann,
+                        strings = strings,
+                        onClose = { /* Local hide logic if needed, but per requirement it stays until expiry */ }
+                    )
+                } else {
+                    HeroDonateBannerCard(
+                        strings = strings,
+                        myDonorProfile = (myDonorState as? UiState.Success)?.data,
+                        onDonateNowClick = { onNavigate(MbdScreen.PROFILE) }
+                    )
+                }
             }
 
             // 2. 2x2 Quick Action Cards Grid matching Reference Screen 2
@@ -1008,6 +1024,93 @@ fun BloodRequestDetailDialog(
             }
         }
     )
+}
+
+@Composable
+fun AdminAnnouncementHeroCard(
+    announcement: AdminAnnouncement,
+    strings: MbdStrings,
+    onClose: () -> Unit = {}
+) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (announcement.isEmergency) Color(0xFFFFEBEE) else MbdCrimsonLight.copy(alpha = 0.6f)
+        ),
+        border = if (announcement.isEmergency) BorderStroke(1.5.dp, Color(0xFFEF9A9A)) else BorderStroke(1.dp, MbdCrimson.copy(alpha = 0.2f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = if (announcement.isEmergency) Color(0xFFD32F2F) else MbdCrimson,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (announcement.isEmergency) Icons.Default.Warning else Icons.Default.Notifications,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (announcement.isEmergency) {
+                            if (strings.isBangla) "জরুরি ঘোষণা 🚨" else "Emergency Alert 🚨"
+                        } else {
+                            if (strings.isBangla) "অ্যাডমিন ঘোষণা" else "Admin Notice"
+                        },
+                        color = if (announcement.isEmergency) Color(0xFFD32F2F) else MbdCrimson,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 13.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = announcement.title,
+                        color = MbdTextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        lineHeight = 22.sp
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text(
+                text = announcement.message,
+                color = MbdTextPrimary,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Medium
+            )
+            
+            if (announcement.durationDays > 0) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color.White.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = if (strings.isBangla) "মেয়াদ: ${announcement.durationDays} দিন" else "Expires in: ${announcement.durationDays} days",
+                        color = MbdTextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

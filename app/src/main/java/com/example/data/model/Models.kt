@@ -694,6 +694,8 @@ data class AdminAnnouncement(
     @get:PropertyName("isActive")
     val isActive: Boolean = true,
     val createdByEmail: String = "",
+    val durationDays: Int = 0,
+    val expiresAt: Timestamp? = null,
     @ServerTimestamp val createdAt: Timestamp? = null
 )
 

@@ -143,7 +143,7 @@ fun AdminPanelScreen(
     onSetDonorVerification: (donorId: String, isPhoneVerified: Boolean, isAdminReviewed: Boolean) -> Unit,
     onSaveEligibilityRule: (EligibilityRule) -> Unit,
     onAdminCorrectDonorDates: (donorId: String, lastDate: String, lastTime: String, nextDate: String, type: String, customType: String, interval: Long, ruleVer: String, count: Long, wb: Long?, plt: Long?, pls: Long?, oth: Long?) -> Unit,
-    onCreateAnnouncement: (title: String, message: String, type: String, isEmergency: Boolean) -> Unit,
+    onCreateAnnouncement: (title: String, message: String, type: String, isEmergency: Boolean, durationDays: Int) -> Unit,
     onDeleteAnnouncement: (announcementId: String) -> Unit,
     onSaveAppConfig: (AppConfig) -> Unit,
     onOpenDonorProfile: (DonorProfile) -> Unit
@@ -2254,12 +2254,13 @@ private fun AdminLogItemRow(log: AdminLog) {
 private fun AdminAnnouncementsView(
     strings: MbdStrings,
     announcementsState: UiState<List<AdminAnnouncement>>,
-    onCreateAnnouncement: (title: String, message: String, type: String, isEmergency: Boolean) -> Unit,
+    onCreateAnnouncement: (title: String, message: String, type: String, isEmergency: Boolean, durationDays: Int) -> Unit,
     onDeleteAnnouncement: (announcementId: String) -> Unit
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var titleInput by remember { mutableStateOf("") }
     var messageInput by remember { mutableStateOf("") }
+    var durationInput by remember { mutableStateOf("0") }
     var announcementType by remember { mutableStateOf("info") }
     var isEmergencyChecked by remember { mutableStateOf(false) }
 
@@ -2336,12 +2337,35 @@ private fun AdminAnnouncementsView(
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Broadcasted by: ${ann.createdByEmail.ifBlank { "Admin" }}",
-                                    color = MbdTextSecondary,
-                                    fontSize = 11.sp
-                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "By: ${ann.createdByEmail.split("@").firstOrNull() ?: "Admin"}",
+                                        color = MbdTextSecondary,
+                                        fontSize = 11.sp
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (ann.durationDays > 0) Color(0xFFFFF3E0) else Color(0xFFE8F5E9)
+                                    ) {
+                                        val durationText = if (ann.durationDays > 0) {
+                                            "${ann.durationDays} ${strings.durationDaysSuffix}"
+                                        } else {
+                                            strings.durationPermanent
+                                        }
+                                        Text(
+                                            text = durationText,
+                                            color = if (ann.durationDays > 0) Color(0xFFE65100) else Color(0xFF2E7D32),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -2374,6 +2398,20 @@ private fun AdminAnnouncementsView(
                         shape = RoundedCornerShape(8.dp)
                     )
                     Spacer(modifier = Modifier.height(10.dp))
+                    
+                    Text(text = strings.announcementDurationLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MbdTextSecondary)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = durationInput,
+                        onValueChange = { durationInput = it.filter { ch -> ch.isDigit() } },
+                        placeholder = { Text("0 = Permanent", fontSize = 13.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        suffix = { Text(strings.durationDaysSuffix, fontSize = 12.sp) }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(
                             checked = isEmergencyChecked,
@@ -2391,7 +2429,8 @@ private fun AdminAnnouncementsView(
                         val title = titleInput.ifBlank { "Important Notice" }
                         val msg = messageInput.ifBlank { "Service update from MBD admin." }
                         val type = if (isEmergencyChecked) "emergency" else "info"
-                        onCreateAnnouncement(title, msg, type, isEmergencyChecked)
+                        val duration = durationInput.toIntOrNull() ?: 0
+                        onCreateAnnouncement(title, msg, type, isEmergencyChecked, duration)
                         showCreateDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson)
