@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.BloodRequest
 import com.example.data.model.DonorProfile
+import com.example.ui.components.DonationCountdownEngine
 import com.example.ui.i18n.MbdStrings
 import com.example.ui.theme.MbdAvailableGreen
 import com.example.ui.theme.MbdBannerPinkEnd
@@ -479,18 +480,28 @@ fun HeroDonateBannerCard(
                         lineHeight = 18.sp
                     )
                     if (myDonorProfile != null) {
+                        val cd = remember(myDonorProfile) {
+                            DonationCountdownEngine.computeCountdown(
+                                lastDonationDate = myDonorProfile.lastDonationDate,
+                                explicitNextEligibleDate = myDonorProfile.nextEligibleDate,
+                                intervalDays = myDonorProfile.eligibilityIntervalDays,
+                                donationType = myDonorProfile.donationType
+                            )
+                        }
+                        val isActuallyAvailable = myDonorProfile.isAvailable && (myDonorProfile.lastDonationDate.isBlank() || cd.isZeroReached || cd.isRuleUndecided)
+                        
                         Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = if (myDonorProfile.isAvailable) {
+                            color = if (isActuallyAvailable) {
                                 MbdAvailableGreen.copy(alpha = 0.14f)
                             } else {
                                 Color.Gray.copy(alpha = 0.15f)
                             }
                         ) {
                             Text(
-                                text = "${myDonorProfile.bloodGroup} • ${if (myDonorProfile.isAvailable) strings.availableBadge else strings.unavailableBadge}",
-                                color = if (myDonorProfile.isAvailable) MbdAvailableGreen else MbdTextSecondary,
+                                text = "${myDonorProfile.bloodGroup} • ${if (isActuallyAvailable) strings.availableBadge else strings.unavailableBadge}",
+                                color = if (isActuallyAvailable) MbdAvailableGreen else MbdTextSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
