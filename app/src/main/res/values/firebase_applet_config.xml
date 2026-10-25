@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <resources>
     <string name="firestore_database_id" translatable="false">ai-studio-android-mirpurbl-21071680-2c3c-4cf1-8f6e-e119f1910833</string>
+    <string name="default_web_client_id" translatable="false">739930865727-oa72im11h1upoaasc7pm4db2cmh8fngk.apps.googleusercontent.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">739930865727</string>
+    <string name="google_app_id" translatable="false">1:739930865727:android:0e5fbc28149d7cd3fb788a</string>
+    <string name="google_api_key" translatable="false">AIzaSyB2GOnWgOR0d5g2dOJO5Q6W6Bc6U7a0OGU</string>
+    <string name="project_id" translatable="false">mirpur-blood-donation-b4aa2</string>
+    <string name="google_storage_bucket" translatable="false">mirpur-blood-donation-b4aa2.firebasestorage.app</string>
 </resources>

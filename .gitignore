@@ -36,6 +36,7 @@ debug.keystore
 *.pem
 google-services.json
 app/google-services.json
+!app/google-services.json
 
 # Logs & Temp Files
 *-debug.log
