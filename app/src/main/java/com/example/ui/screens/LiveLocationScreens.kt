@@ -136,6 +136,7 @@ fun BloodRequestDetailsScreen(
     request: BloodRequest,
     strings: MbdStrings,
     currentUserId: String,
+    isDonorAvailable: Boolean,
     liveSessionState: UiState<LiveLocationSession?>,
     isAdminUser: Boolean = false,
     onBack: () -> Unit,
@@ -144,6 +145,7 @@ fun BloodRequestDetailsScreen(
     onOpenDonorLiveMap: () -> Unit,
     onStopSharingLocation: () -> Unit,
     onUpdateStatus: (String) -> Unit = {},
+    onAcceptRequest: () -> Unit = {},
     onMarkFulfilled: () -> Unit,
     onDeleteRequest: () -> Unit,
     onReportRequest: (String) -> Unit = {}
@@ -162,6 +164,7 @@ fun BloodRequestDetailsScreen(
 
     var showReportDialog by remember { mutableStateOf(false) }
     var reportReasonText by remember { mutableStateOf("") }
+    var showFulfillConfirmationDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -622,8 +625,11 @@ fun BloodRequestDetailsScreen(
                 }
             }
 
-            // Owner / Admin Request Management Card
-            if (isRequester || isAdminUser) {
+            // Owner / Admin / Authorized Donor Request Management Card
+            val isAuthorizedDonor = request.authorizedDonorId == currentUserId
+            val canVolunteer = !isRequester && !isAdminUser && request.status == "open" && request.authorizedDonorId.isBlank()
+
+            if (isRequester || isAdminUser || isAuthorizedDonor || canVolunteer) {
                 val resolvedStatus = request.resolvedStatus()
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -644,37 +650,93 @@ fun BloodRequestDetailsScreen(
                             color = MbdTextPrimary
                         )
 
-                        if (!request.isTerminal()) {
+                        if (canVolunteer) {
+                            if (!isDonorAvailable) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MbdSoftPinkAlert.copy(alpha = 0.8f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = null,
+                                            tint = MbdCrimson,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = if (strings.isBangla) "আপনি বর্তমানে কোল্ডডাউন পিরিয়ডে আছেন। নতুন আবেদন গ্রহণ করতে পারবেন না।" else "You are in cooldown. Cannot accept new requests.",
+                                            fontSize = 11.sp,
+                                            color = MbdCrimson,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Primary Action for Potential Donors
+                            Button(
+                                onClick = onAcceptRequest,
+                                enabled = isDonorAvailable,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MbdCrimson,
+                                    disabledContainerColor = MbdBorderGray.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .testTag("details_accept_request_button")
+                            ) {
+                                Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (strings.isBangla) "রক্তদান করতে আগ্রহী (Accept Request)" else "Accept Request & Volunteer",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+
+                        if (!request.isTerminal() && (isRequester || isAdminUser || isAuthorizedDonor)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (resolvedStatus == "pending") {
-                                    OutlinedButton(
-                                        onClick = { onUpdateStatus("donor_contacted") },
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .testTag("details_mark_contacted_button")
-                                    ) {
-                                        Text(
-                                            text = strings.markDonorContactedBtn,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                if (isRequester || isAdminUser) {
+                                    if (resolvedStatus == "pending") {
+                                        OutlinedButton(
+                                            onClick = { onUpdateStatus("donor_contacted") },
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("details_mark_contacted_button")
+                                        ) {
+                                            Text(
+                                                text = strings.markDonorContactedBtn,
+                                                fontSize = 11.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
                                     }
                                 }
-                                if (resolvedStatus in listOf("pending", "donor_contacted")) {
+
+                                if (isAuthorizedDonor && resolvedStatus == "accepted") {
+                                    // Donor specific actions
                                     OutlinedButton(
-                                        onClick = { onUpdateStatus("accepted") },
+                                        onClick = { onUpdateStatus("pending") },
                                         shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier
                                             .weight(1f)
-                                            .testTag("details_mark_accepted_button")
+                                            .testTag("details_cancel_commitment_button")
                                     ) {
                                         Text(
-                                            text = strings.markAcceptedBtn,
+                                            text = if (strings.isBangla) "অঙ্গীকার বাতিল করুন" else "Cancel My Commitment",
                                             fontSize = 11.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -687,66 +749,77 @@ fun BloodRequestDetailsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Button(
-                                    onClick = onMarkFulfilled,
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MbdAvailableGreen),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .testTag("details_mark_fulfilled_button")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = strings.markCompletedBtn,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                // "Mark as Fulfilled" - Now visible to Donor too!
+                                if (isRequester || isAdminUser || isAuthorizedDonor) {
+                                    Button(
+                                        onClick = { showFulfillConfirmationDialog = true },
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MbdAvailableGreen),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("details_mark_fulfilled_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = if (isAuthorizedDonor) {
+                                                if (strings.isBangla) "আমি রক্ত দিয়েছি (Fulfilled)" else "I have Donated (Fulfilled)"
+                                            } else {
+                                                strings.markCompletedBtn
+                                            },
+                                            fontSize = 12.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
 
-                                OutlinedButton(
-                                    onClick = { onUpdateStatus("cancelled") },
-                                    border = BorderStroke(1.dp, Color.Gray),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.testTag("details_mark_cancelled_button")
-                                ) {
-                                    Text(
-                                        text = strings.markCancelledBtn,
-                                        color = Color.Gray,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
+                                if (isRequester || isAdminUser) {
+                                    OutlinedButton(
+                                        onClick = { onUpdateStatus("cancelled") },
+                                        border = BorderStroke(1.dp, Color.Gray),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.testTag("details_mark_cancelled_button")
+                                    ) {
+                                        Text(
+                                            text = strings.markCancelledBtn,
+                                            color = Color.Gray,
+                                            fontSize = 11.sp,
+                                            maxLines = 1
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            OutlinedButton(
-                                onClick = onDeleteRequest,
-                                border = BorderStroke(1.dp, MbdCrimson),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.testTag("details_delete_request_button")
+                        if (isRequester || isAdminUser) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
-                                    contentDescription = "Delete",
-                                    tint = MbdCrimson,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (strings.isBangla) "আবেদন মুছুন" else "Delete",
-                                    color = MbdCrimson,
-                                    fontSize = 12.sp
-                                )
+                                OutlinedButton(
+                                    onClick = onDeleteRequest,
+                                    border = BorderStroke(1.dp, MbdCrimson),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.testTag("details_delete_request_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = "Delete",
+                                        tint = MbdCrimson,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (strings.isBangla) "আবেদন মুছুন" else "Delete",
+                                        color = MbdCrimson,
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -850,6 +923,48 @@ fun BloodRequestDetailsScreen(
             dismissButton = {
                 TextButton(onClick = { showReportDialog = false }) {
                     Text(if (strings.isBangla) "বাতিল" else "Cancel", color = MbdTextSecondary)
+                }
+            }
+        )
+    }
+
+    if (showFulfillConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showFulfillConfirmationDialog = false },
+            title = {
+                Text(
+                    text = if (strings.isBangla) "রক্তদান সম্পন্ন নিশ্চিতকরণ" else "Confirm Blood Donation Completion",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = MbdTextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = if (strings.isBangla) {
+                        "আপনি কি এই আবেদনটির জন্য সফলভাবে রক্তদান সম্পন্ন করেছেন?\n\n'হ্যাঁ' সিলেক্ট করলে হাসপাতাল (${request.hospitalName}) ও গ্রহীতার তথ্য স্বয়ংক্রিয়ভাবে আপনার রক্তদানের ইতিহাসে যুক্ত হবে এবং পরবর্তী সময়ের জন্য কোল্ডডাউন কাউন্টডাউন শুরু হবে।"
+                    } else {
+                        "Did you successfully complete blood donation for this request?\n\nSelecting 'Yes' will automatically log the hospital (${request.hospitalName}) and recipient details to your donation history and start your cooldown countdown."
+                    },
+                    fontSize = 13.sp,
+                    color = MbdTextSecondary,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showFulfillConfirmationDialog = false
+                        onMarkFulfilled()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MbdAvailableGreen)
+                ) {
+                    Text(if (strings.isBangla) "হ্যাঁ, রক্তদান সম্পন্ন করেছি" else "Yes, Blood Donated")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showFulfillConfirmationDialog = false }) {
+                    Text(if (strings.isBangla) "না (ফিরে যান)" else "No, Cancel")
                 }
             }
         )

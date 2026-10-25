@@ -109,16 +109,18 @@ jobs:
 
       - name: Generate Version Manifest
         run: |
-          cat <<EOF > build_outputs/version_manifest.json
+          cat <<EOF > build_outputs/latest.json
           {
-            "latestVersionName": "${VERSION_NAME}",
-            "latestVersionCode": ${VERSION_CODE},
-            "minSupportedVersionCode": 1,
-            "releaseNotesBn": "মিরপুর ব্লাড ডোনেশন অ্যাপের নতুন সংস্করণ ${VERSION_NAME} আপডেট করা হয়েছে।",
-            "releaseNotesEn": "Mirpur Blood Donation new update v${VERSION_NAME} published.",
-            "isUpdateMandatory": false
+            "versionName": "${VERSION_NAME}",
+            "versionCode": ${VERSION_CODE},
+            "minSupportedVersionCode": ${VERSION_CODE},
+            "releaseNotesBn": "মিরপুর ব্লাড ডোনেশন অ্যাপের নতুন সংস্করণ ${VERSION_NAME} আপডেট করা হয়েছে। গুরুত্বপূর্ণ ফিচার এবং উন্নত পারফরম্যান্স পেতে এখনই আপডেট করুন।",
+            "releaseNotesEn": "Mirpur Blood Donation v${VERSION_NAME} is now available with critical improvements and new features.",
+            "mandatory": true,
+            "apkUrl": ""
           }
           EOF
+          # Note: apkUrl will be resolved by the app from the GitHub Release Assets list.
 
       - name: Clean Old GitHub Releases (Keep Only Latest)
         env:
@@ -137,6 +139,6 @@ jobs:
           TAG="v${VERSION_NAME}"
           gh release create "$TAG" \
             --title "Mirpur Blood Donation v${VERSION_NAME}" \
-            --notes "Automated release v${VERSION_NAME} (Build ${VERSION_CODE})" \
+            --notes "Automated production release v${VERSION_NAME} (Build ${VERSION_CODE})" \
             build_outputs/app-release.apk \
-            build_outputs/version_manifest.json
+            build_outputs/latest.json

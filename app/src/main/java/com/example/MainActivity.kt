@@ -110,6 +110,8 @@ import kotlinx.coroutines.launch
 
 import android.content.Intent
 import com.example.ui.util.MbdNotificationHelper
+import com.example.util.UpdateInfo
+import com.example.util.DownloadState
 
 class MainActivity : ComponentActivity() {
     private var pendingTargetScreen: String? = null
@@ -236,6 +238,7 @@ fun MbdAuthenticatedShell(
                 val db = FirebaseFirestore.getInstance(databaseId)
                 MbdViewModel(
                     repository = MbdRepository(db),
+                    application = app,
                     currentUserId = currentUserId,
                     defaultDisplayName = defaultDisplayName,
                     defaultEmail = defaultEmail,
@@ -577,15 +580,16 @@ fun MbdAuthenticatedShell(
                     allRequests.find { it.id == selectedRequestId } ?: allRequests.firstOrNull()
                 }
 
-                val currentAppConfig = (appConfigState as? UiState.Success<*>)?.data as? com.example.data.model.AppConfig ?: com.example.data.model.AppConfig()
-                val updateManager = remember(context) { com.example.util.UpdateManager(context) }
-                val updateInfo = remember(currentAppConfig) { updateManager.checkUpdate(currentAppConfig) }
+                val updateInfo: UpdateInfo? by viewModel.updateInfo.collectAsStateWithLifecycle()
+                val downloadState: DownloadState by viewModel.downloadState.collectAsStateWithLifecycle()
+                var skipOptionalUpdate by remember { mutableStateOf(false) }
 
-                if (updateInfo.isMandatory && updateInfo.requiresUpdate) {
+                if (updateInfo != null && updateInfo!!.requiresUpdate && (updateInfo!!.isMandatory || !skipOptionalUpdate)) {
                     com.example.ui.screens.MandatoryUpdateScreen(
-                        updateInfo = updateInfo,
+                        updateInfo = updateInfo!!,
                         isBangla = strings.isBangla,
-                        updateManager = updateManager
+                        updateManager = viewModel.updateManager,
+                        onSkipOptionalUpdate = if (updateInfo!!.isMandatory) null else { { skipOptionalUpdate = true } }
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -612,6 +616,7 @@ fun MbdAuthenticatedShell(
                                 searchQuery = searchQuery,
                                 selectedBloodGroup = selectedBloodGroup,
                                 availableOnly = availableOnly,
+                                currentUserId = currentUserId,
                                 onSearchQueryChange = { viewModel.setSearchQuery(it) },
                                 onSelectBloodGroup = { viewModel.setSelectedBloodGroup(it) },
                                 onToggleAvailableOnly = { viewModel.setAvailableOnly(it) },
@@ -749,6 +754,7 @@ fun MbdAuthenticatedShell(
                                     request = req,
                                     strings = strings,
                                     currentUserId = currentUserId,
+                                    isDonorAvailable = myDonor?.isAvailable == true,
                                     liveSessionState = activeLiveSessionState,
                                     isAdminUser = viewModel.isAdminUser,
                                     onBack = { viewModel.navigateBack() },
@@ -767,8 +773,9 @@ fun MbdAuthenticatedShell(
                                     onUpdateStatus = { status ->
                                         viewModel.markRequestStatus(req.id, status)
                                     },
+                                     onAcceptRequest = { viewModel.acceptBloodRequest(req) },
                                     onMarkFulfilled = {
-                                        viewModel.markRequestStatus(req.id, "completed")
+                                        viewModel.confirmAndFulfillRequestWithDonation(req) { viewModel.navigateTo(MbdScreen.HOME) }
                                     },
                                     onDeleteRequest = {
                                         viewModel.deleteRequest(req.id)
@@ -990,6 +997,7 @@ fun MbdAuthenticatedShell(
                                 strings = strings,
                                 currentLanguage = language,
                                 currentThemeMode = themeMode,
+                                updateInfo = updateInfo,
                                 onSelectLanguage = { lang ->
                                     MbdPreferencesManager.setLanguage(context, lang)
                                     viewModel.setLanguage(lang)
@@ -1008,11 +1016,14 @@ fun MbdAuthenticatedShell(
                             )
                         }
                         MbdScreen.APP_UPDATE -> {
-                            com.example.ui.screens.MandatoryUpdateScreen(
+                            AppUpdateScreen(
+                                strings = strings,
                                 updateInfo = updateInfo,
-                                isBangla = strings.isBangla,
-                                updateManager = updateManager,
-                                onSkipOptionalUpdate = { viewModel.navigateBack() }
+                                downloadState = downloadState,
+                                onCheckForUpdates = { viewModel.checkForAppUpdates() },
+                                onStartDownload = { url -> viewModel.startDownloadUpdate(url) },
+                                onResetDownload = { viewModel.resetDownloadState() },
+                                onBack = { viewModel.navigateBack() }
                             )
                         }
                         MbdScreen.ABOUT_CONTACT_PRIVACY -> {

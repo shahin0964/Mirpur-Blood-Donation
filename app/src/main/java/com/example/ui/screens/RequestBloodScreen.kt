@@ -121,7 +121,16 @@ fun RequestBloodScreen(
     var showLocationMenu by remember { mutableStateOf(false) }
 
     var patientName by remember { mutableStateOf("") }
-    var contactNumber by remember { mutableStateOf(defaultPhoneNumber) }
+    var contactNumber by remember { mutableStateOf("") }
+    var useMyNumber by remember { mutableStateOf(false) }
+
+    LaunchedEffect(useMyNumber) {
+        if (useMyNumber && defaultPhoneNumber.isNotBlank()) {
+            contactNumber = defaultPhoneNumber
+        } else if (!useMyNumber && contactNumber == defaultPhoneNumber) {
+            contactNumber = ""
+        }
+    }
     var neededDateTime by remember { mutableStateOf("") }
     var bagsNeeded by remember { mutableLongStateOf(1L) }
     var urgency by remember { mutableStateOf("Emergency") }
@@ -206,8 +215,8 @@ fun RequestBloodScreen(
             if (preselectedDonor != null) {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = MbdAvailableGreen.copy(alpha = 0.1f),
-                    border = BorderStroke(1.dp, MbdAvailableGreen.copy(alpha = 0.45f)),
+                    color = MbdAvailableGreen.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, MbdAvailableGreen.copy(alpha = 0.35f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("associated_donor_banner")
@@ -215,62 +224,57 @@ fun RequestBloodScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
                             shape = CircleShape,
                             color = MbdCrimson,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = preselectedDonor.bloodGroup,
                                     color = Color.White,
                                     fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 15.sp
+                                    fontSize = 14.sp
                                 )
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Verified,
-                                    contentDescription = null,
-                                    tint = MbdAvailableGreen,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (strings.isBangla) {
-                                        "নির্বাচিত রক্তদাতা (যুক্ত করা হয়েছে)"
-                                    } else {
-                                        "Associated Blood Donor"
-                                    },
-                                    fontSize = 11.sp,
-                                    color = MbdAvailableGreen,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Text(
+                                text = if (strings.isBangla) "নির্বাচিত রক্তদাতা:" else "Selected Donor:",
+                                fontSize = 10.sp,
+                                color = MbdAvailableGreen,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
                             Text(
                                 text = preselectedDonor.fullName,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = MbdTextPrimary
+                                fontSize = 14.sp,
+                                color = MbdTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = preselectedDonor.area,
-                                fontSize = 12.sp,
-                                color = MbdTextSecondary
+                                fontSize = 11.sp,
+                                color = MbdTextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        IconButton(onClick = onClearPreselectedDonor) {
+                        IconButton(
+                            onClick = onClearPreselectedDonor,
+                            modifier = Modifier.size(32.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear selected donor",
                                 tint = MbdTextSecondary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
@@ -557,13 +561,40 @@ fun RequestBloodScreen(
 
             // 5. Contact Number * (with leading Call icon)
             Column {
-                RequiredFieldLabel(text = strings.contactNumberLabel)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RequiredFieldLabel(text = strings.contactNumberLabel)
+                    if (defaultPhoneNumber.isNotBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { useMyNumber = !useMyNumber }
+                        ) {
+                            androidx.compose.material3.Checkbox(
+                                checked = useMyNumber,
+                                onCheckedChange = { useMyNumber = it },
+                                colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = MbdCrimson),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (strings.isBangla) "আমার নম্বর ব্যবহার করুন" else "Use my number",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MbdCrimson
+                            )
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = contactNumber,
                     onValueChange = {
                         contactNumber = it
                         validationError = null
+                        if (it != defaultPhoneNumber) useMyNumber = false
                     },
                     placeholder = {
                         Text(

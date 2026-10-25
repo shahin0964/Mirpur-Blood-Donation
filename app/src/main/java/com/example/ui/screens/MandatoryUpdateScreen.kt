@@ -59,29 +59,30 @@ fun MandatoryUpdateScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = MbdCrimson
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = Modifier
+                    .widthIn(max = 480.dp)
                     .fillMaxWidth()
                     .wrapContentHeight(),
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    containerColor = Color.White
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Header Icon
@@ -274,31 +275,51 @@ fun MandatoryUpdateScreen(
                     // Download State Section
                     when (val state = downloadState) {
                         is DownloadState.Idle -> {
-                            Button(
-                                onClick = {
-                                    canInstall = updateManager.canInstallPackages()
-                                    coroutineScope.launch {
-                                        updateManager.downloadApk(updateInfo.downloadUrl)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson),
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Download,
-                                    contentDescription = null,
-                                    tint = Color.White
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (isBangla) "ডাউনলোড ও আপডেট করুন" else "Download & Update Now",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = Color.White
-                                )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = {
+                                        canInstall = updateManager.canInstallPackages()
+                                        coroutineScope.launch {
+                                            updateManager.downloadApk(updateInfo.downloadUrl)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = null,
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = if (isBangla) "ডাউনলোড ও আপডেট করুন" else "Download & Update Now",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        color = Color.White
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                OutlinedButton(
+                                    onClick = {
+                                        updateManager.openDownloadUrl(updateInfo.downloadUrl)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Text(
+                                        text = if (isBangla) "প্লে স্টোর বা ব্রাউজারে খুলুন" else "Open in Play Store / Browser",
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
                         }
 
@@ -387,6 +408,19 @@ fun MandatoryUpdateScreen(
                                         color = Color.White
                                     )
                                 }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        updateManager.openDownloadUrl(updateInfo.downloadUrl)
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Text(
+                                        text = if (isBangla) "প্লে স্টোর বা ব্রাউজারে খুলুন" else "Open in Play Store / Browser",
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -399,7 +433,7 @@ fun MandatoryUpdateScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = if (isBangla) "পরে করবো" else "Skip for Now",
+                                text = if (isBangla) "পরে করব" else "Skip for Now",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

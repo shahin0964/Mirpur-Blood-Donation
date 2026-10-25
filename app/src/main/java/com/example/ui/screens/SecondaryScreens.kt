@@ -599,7 +599,8 @@ fun ProfileAndDonorRegistrationScreen(
                             availabilityStatus = availabilityStatus,
                             isAvailableFallback = availabilityStatus == "available",
                             strings = strings,
-                            compact = false
+                            compact = false,
+                            forceTemporarilyUnavailable = multiEval.nextEligibleDate.isNotBlank() && multiEval.nextEligibleDate != "UNDECIDED" && !DonationCountdownEngine.computeCountdown(multiEval.lastDonationDate, multiEval.nextEligibleDate, multiEval.governingIntervalDays, multiEval.lastDonationType, multiEval.lastDonationTime).isZeroReached
                         )
                     }
                 }

@@ -66,6 +66,7 @@ import com.example.data.model.DonorProfile
 import com.example.data.model.MIRPUR_LOCATIONS
 import com.example.ui.components.AvailabilityStatusBadge
 import com.example.ui.components.CompactDonorCardCountdownBadge
+import com.example.ui.components.DonationCountdownEngine
 import com.example.ui.i18n.MbdStrings
 import com.example.ui.theme.MbdAvailableGreen
 import com.example.ui.theme.MbdBorderGray
@@ -87,6 +88,7 @@ fun FindDonorsScreen(
     searchQuery: String,
     selectedBloodGroup: String,
     availableOnly: Boolean,
+    currentUserId: String = "",
     onSearchQueryChange: (String) -> Unit,
     onSelectBloodGroup: (String) -> Unit,
     onToggleAvailableOnly: (Boolean) -> Unit,
@@ -327,18 +329,27 @@ fun FindDonorsScreen(
                 }
             }
             is UiState.Success -> {
-                val filteredDonors = remember(donorsState.data, searchQuery, selectedBloodGroup, availableOnly) {
+                val filteredDonors = remember(donorsState.data, searchQuery, selectedBloodGroup, availableOnly, currentUserId) {
                     val q = searchQuery.trim().lowercase()
+                    val myId = currentUserId.trim()
                     donorsState.data.filter { donor ->
+                        val donorUid = donor.userId.trim()
+                        val donorDocId = donor.id.trim()
+                        val isSelf = myId.isNotBlank() && (
+                            donorUid.equals(myId, ignoreCase = true) || 
+                            donorDocId.equals(myId, ignoreCase = true)
+                        )
                         val matchesGroup = selectedBloodGroup == "All" ||
                             donor.bloodGroup.equals(selectedBloodGroup, ignoreCase = true)
-                        val matchesAvailability = !availableOnly || donor.isAvailable
+                        val matchesAvailability = if (!availableOnly) true else {
+                            donor.isAvailable && (donor.lastDonationDate.isBlank() || DonationCountdownEngine.computeCountdown(donor.lastDonationDate, donor.nextEligibleDate, donor.eligibilityIntervalDays, donor.donationType).isZeroReached)
+                        }
                         val matchesQuery = q.isEmpty() ||
                             donor.fullName.lowercase().contains(q) ||
                             donor.bloodGroup.lowercase().contains(q) ||
                             donor.area.lowercase().contains(q) ||
                             donor.address.lowercase().contains(q)
-                        matchesGroup && matchesAvailability && matchesQuery
+                        !isSelf && matchesGroup && matchesAvailability && matchesQuery
                     }
                 }
 
@@ -426,6 +437,14 @@ fun DonorListItemCard(
             .fillMaxWidth()
             .testTag("donor_card_$donorKey")
     ) {
+        val cd = remember(donor.lastDonationDate, donor.nextEligibleDate, donor.eligibilityIntervalDays, donor.donationType) {
+            DonationCountdownEngine.computeCountdown(
+                lastDonationDate = donor.lastDonationDate,
+                explicitNextEligibleDate = donor.nextEligibleDate,
+                intervalDays = donor.eligibilityIntervalDays,
+                donationType = donor.donationType
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -464,7 +483,7 @@ fun DonorListItemCard(
                         .background(Color.White)
                         .padding(2.dp)
                         .clip(CircleShape)
-                        .background(if (donor.isAvailable) MbdAvailableGreen else Color.Gray)
+                        .background(if (donor.isAvailable && (donor.lastDonationDate.isBlank() || cd.isZeroReached || cd.isRuleUndecided)) MbdAvailableGreen else Color.Gray)
                 )
             }
 
@@ -484,7 +503,10 @@ fun DonorListItemCard(
                 Spacer(modifier = Modifier.height(3.dp))
 
                 // Blood Drop + Group + Availability Status
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Icon(
                         imageVector = Icons.Default.WaterDrop,
                         contentDescription = null,
@@ -498,19 +520,22 @@ fun DonorListItemCard(
                         fontSize = 14.sp,
                         color = MbdTextPrimary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
                     AvailabilityStatusBadge(
                         availabilityStatus = donor.resolvedAvailabilityStatus(),
                         isAvailableFallback = donor.isAvailable,
                         strings = strings,
-                        compact = true
+                        compact = true,
+                        forceTemporarilyUnavailable = donor.lastDonationDate.isNotBlank() && !cd.isZeroReached && !cd.isRuleUndecided
                     )
                 }
 
                 Spacer(modifier = Modifier.height(3.dp))
 
                 // Location Row
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = null,
@@ -523,7 +548,8 @@ fun DonorListItemCard(
                         fontSize = 12.sp,
                         color = MbdTextSecondary,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                 }
 
@@ -540,7 +566,9 @@ fun DonorListItemCard(
                             }
                         },
                         fontSize = 11.sp,
-                        color = MbdTextSecondary.copy(alpha = 0.85f)
+                        color = MbdTextSecondary.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -562,10 +590,13 @@ fun DonorListItemCard(
             // Green Call Button matching Reference Screen 3 — initiates phone call separately without opening profile page
             Button(
                 onClick = onCallClick,
+                enabled = donor.isAvailable && donor.phoneNumber.isNotBlank() && (donor.lastDonationDate.isBlank() || cd.isZeroReached || cd.isRuleUndecided),
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MbdCallGreen,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = MbdBorderGray.copy(alpha = 0.4f),
+                    disabledContentColor = MbdTextSecondary.copy(alpha = 0.6f)
                 ),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                 modifier = Modifier

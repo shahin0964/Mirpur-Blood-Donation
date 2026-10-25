@@ -467,7 +467,7 @@ fun DonorProfileDetailsScreen(
                                                 )
                                             )
                                         )
-                                        .padding(top = 20.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
+                                        .padding(top = 16.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
                                 ) {
                                     // Prominent Red Blood Group Badge at Top-End
                                     Surface(
@@ -575,7 +575,7 @@ fun DonorProfileDetailsScreen(
                                                     .padding(3.dp)
                                                     .clip(CircleShape)
                                                     .background(
-                                                        if (donor.isAvailable) MbdAvailableGreen else Color.Gray
+                                                        if (donor.isAvailable && (eligibilityInfo == null || eligibilityInfo.isEligibleNow)) MbdAvailableGreen else Color.Gray
                                                     )
                                             )
                                         }
@@ -591,10 +591,14 @@ fun DonorProfileDetailsScreen(
                                     Text(
                                         text = donor.fullName,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 21.sp,
+                                        fontSize = 20.sp,
                                         color = MbdTextPrimary,
                                         textAlign = TextAlign.Center,
-                                        modifier = Modifier.testTag("donor_profile_full_name")
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .weight(1f, fill = false)
+                                            .testTag("donor_profile_full_name")
                                     )
                                     if (donor.isPhoneVerified && donor.isAdminReviewed) {
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -602,7 +606,7 @@ fun DonorProfileDetailsScreen(
                                             imageVector = Icons.Default.Verified,
                                             contentDescription = "Verified Donor",
                                             tint = MbdAvailableGreen,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
@@ -614,7 +618,8 @@ fun DonorProfileDetailsScreen(
                                     availabilityStatus = donor.resolvedAvailabilityStatus(),
                                     isAvailableFallback = donor.isAvailable,
                                     strings = strings,
-                                    compact = false
+                                    compact = false,
+                                    forceTemporarilyUnavailable = eligibilityInfo != null && !eligibilityInfo.isEligibleNow
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -623,36 +628,39 @@ fun DonorProfileDetailsScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        .padding(horizontal = 12.dp, vertical = 14.dp),
                                     horizontalArrangement = Arrangement.SpaceEvenly,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     ProfileQuickStat(
                                         value = donor.bloodGroup,
                                         label = strings.bloodGroupLabel,
-                                        valueColor = MbdCrimson
+                                        valueColor = MbdCrimson,
+                                        modifier = Modifier.weight(1f)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(1.dp)
-                                            .height(32.dp)
-                                            .background(MbdBorderGray)
+                                            .height(28.dp)
+                                            .background(MbdBorderGray.copy(alpha = 0.4f))
                                     )
                                     ProfileQuickStat(
                                         value = if (strings.isBangla) "${donor.totalDonations} বার" else "${donor.totalDonations}",
                                         label = strings.totalDonationsLabel,
-                                        valueColor = MbdTextPrimary
+                                        valueColor = MbdTextPrimary,
+                                        modifier = Modifier.weight(1f)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(1.dp)
-                                            .height(32.dp)
-                                            .background(MbdBorderGray)
+                                            .height(28.dp)
+                                            .background(MbdBorderGray.copy(alpha = 0.4f))
                                     )
                                     ProfileQuickStat(
                                         value = donor.area.substringBefore(",").ifBlank { "Mirpur" },
                                         label = strings.locationLabel,
-                                        valueColor = MbdAvailableGreen
+                                        valueColor = MbdAvailableGreen,
+                                        modifier = Modifier.weight(1f)
                                     )
                                 }
                             }
@@ -661,212 +669,276 @@ fun DonorProfileDetailsScreen(
                         // =========================================================================
                         // E. PRIMARY ACTION BUTTONS (Call, Contact SMS, Send Blood Request, View Shared Location)
                         // =========================================================================
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MbdSurface),
-                            border = BorderStroke(1.dp, MbdBorderGray),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                        if (!isSelf) {
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MbdSurface),
+                                border = BorderStroke(1.dp, MbdBorderGray),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                if (!canSeePhone) {
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = MbdSoftPinkAlert,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(10.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    val isDonorReady = donor.isAvailable && (eligibilityInfo == null || eligibilityInfo.isEligibleNow)
+
+                                    if (!isDonorReady) {
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = Color(0xFFFFF3E0),
+                                            border = BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.5f)),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Lock,
-                                                contentDescription = null,
-                                                tint = MbdCrimson,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = strings.phoneHiddenNotice,
-                                                fontSize = 12.sp,
-                                                color = MbdCrimson,
-                                                fontWeight = FontWeight.Medium
-                                            )
+                                            Row(
+                                                modifier = Modifier.padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Warning,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFE65100),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = if (strings.isBangla) {
+                                                        "এই রক্তদাতা বর্তমানে রক্তদানের জন্য প্রস্তুত নন। প্রস্তুত হওয়ার পর যোগাযোগ ও আবেদন সক্রিয় হবে।"
+                                                    } else {
+                                                        "This donor is currently unavailable for donation. Contact and request buttons will be enabled when ready."
+                                                    },
+                                                    fontSize = 12.sp,
+                                                    color = Color(0xFF5D4037),
+                                                    fontWeight = FontWeight.Medium,
+                                                    lineHeight = 16.sp
+                                                )
+                                            }
                                         }
                                     }
 
-                                    // Direct in-app blood request action protecting phone privacy
-                                    Button(
-                                        onClick = { onSendBloodRequestToDonor(donor) },
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .testTag("profile_action_send_request_private_donor")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.Send,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = strings.sendBloodRequestBtn,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp
-                                        )
-                                    }
-                                } else {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        // 1. Call Donor Button (Green)
+                                    if (!canSeePhone) {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = MbdSoftPinkAlert.copy(alpha = 0.8f),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Lock,
+                                                    contentDescription = null,
+                                                    tint = MbdCrimson,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = strings.phoneHiddenNotice,
+                                                    fontSize = 12.sp,
+                                                    color = MbdCrimson,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+
+                                        // Direct in-app blood request action protecting phone privacy
                                         Button(
-                                            onClick = {
-                                                if (donor.phoneNumber.isNotBlank()) {
-                                                    dialPhoneNumber(context, donor.phoneNumber)
-                                                }
-                                            },
-                                            enabled = donor.phoneNumber.isNotBlank(),
+                                            onClick = { onSendBloodRequestToDonor(donor) },
+                                            enabled = isDonorReady,
                                             shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MbdCallGreen,
-                                                contentColor = Color.White
-                                            ),
+                                            colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson),
                                             modifier = Modifier
-                                                .weight(1f)
-                                                .height(48.dp)
-                                                .testTag("profile_action_call_donor")
+                                                .fillMaxWidth()
+                                                .height(50.dp)
+                                                .testTag("profile_action_send_request_private_donor")
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Call,
+                                                imageVector = Icons.AutoMirrored.Filled.Send,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = strings.callDonorBtn,
+                                                text = strings.sendBloodRequestBtn,
                                                 fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                fontSize = 14.sp
                                             )
                                         }
+                                    } else {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            // 1. Call Donor Button (Green)
+                                            Button(
+                                                onClick = {
+                                                    if (donor.phoneNumber.isNotBlank()) {
+                                                        dialPhoneNumber(context, donor.phoneNumber)
+                                                    }
+                                                },
+                                                enabled = isDonorReady && donor.phoneNumber.isNotBlank(),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MbdCallGreen,
+                                                    contentColor = Color.White
+                                                ),
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(50.dp)
+                                                    .testTag("profile_action_call_donor")
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Call,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = strings.callBtn,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp
+                                                )
+                                            }
 
-                                        // 2. Contact Donor (SMS / Message) Button
-                                        OutlinedButton(
-                                            onClick = {
-                                                openSmsToDonor(context, donor, strings.isBangla)
-                                            },
+                                            // 2. Direct Message / SMS Button
+                                            OutlinedButton(
+                                                onClick = { openSmsToDonor(context, donor, strings.isBangla) },
+                                                enabled = isDonorReady && donor.phoneNumber.isNotBlank(),
+                                                shape = RoundedCornerShape(12.dp),
+                                                border = BorderStroke(1.dp, MbdCallGreen),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MbdCallGreen),
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(50.dp)
+                                                    .testTag("profile_action_sms_donor")
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.Message,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(17.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = strings.contactDonorBtn,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+
+                                        // 3. Send Blood Request Button (Primary Crimson Action — associates request with selected donor)
+                                        Button(
+                                            onClick = { onSendBloodRequestToDonor(donor) },
+                                            enabled = isDonorReady,
                                             shape = RoundedCornerShape(12.dp),
-                                            border = BorderStroke(1.5.dp, MbdCrimson),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MbdCrimson),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MbdCrimson,
+                                                contentColor = Color.White
+                                            ),
                                             modifier = Modifier
-                                                .weight(1f)
-                                                .height(48.dp)
-                                                .testTag("profile_action_contact_donor")
+                                                .fillMaxWidth()
+                                                .height(52.dp)
+                                                .testTag("profile_action_send_blood_request")
                                         ) {
                                             Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.Message,
+                                                imageVector = Icons.AutoMirrored.Filled.Send,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(17.dp)
+                                                modifier = Modifier.size(18.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = strings.contactDonorBtn,
+                                                text = "${strings.sendBloodRequestBtn} (${donor.bloodGroup})",
                                                 fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                fontSize = 14.sp
                                             )
                                         }
                                     }
-                                }
 
-                                // 3. Send Blood Request Button (Primary Crimson Action — associates request with selected donor)
-                                Button(
-                                    onClick = { onSendBloodRequestToDonor(donor) },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MbdCrimson,
-                                        contentColor = Color.White
-                                    ),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(50.dp)
-                                        .testTag("profile_action_send_blood_request")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Send,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "${strings.sendBloodRequestBtn} (${donor.bloodGroup})",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
-                                }
-
-                                // 4. View Shared Location Button (when authorized or area shared)
-                                if (authorizedLiveRequest != null) {
-                                    Button(
-                                        onClick = { onViewAuthorizedLiveLocation(authorizedLiveRequest) },
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MbdAvailableGreen,
-                                            contentColor = Color.White
-                                        ),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .testTag("profile_action_view_shared_location")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.LocationOn,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = strings.viewSharedLocationBtn,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp
-                                        )
-                                    }
-                                } else if (canSeeLocationArea) {
-                                    OutlinedButton(
-                                        onClick = { showExpandedAreaMap = !showExpandedAreaMap },
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, MbdAvailableGreen),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MbdAvailableGreen),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(46.dp)
-                                            .testTag("profile_action_view_shared_location")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Map,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = strings.viewSharedLocationBtn,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
-                                        )
+                                    // 4. View Shared Location Button (when authorized or area shared)
+                                    if (authorizedLiveRequest != null) {
+                                        Button(
+                                            onClick = { onViewAuthorizedLiveLocation(authorizedLiveRequest) },
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MbdAvailableGreen,
+                                                contentColor = Color.White
+                                            ),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(48.dp)
+                                                .testTag("profile_action_view_shared_location")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.LocationOn,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = strings.viewSharedLocationBtn,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    } else if (canSeeLocationArea) {
+                                        OutlinedButton(
+                                            onClick = { showExpandedAreaMap = !showExpandedAreaMap },
+                                            shape = RoundedCornerShape(12.dp),
+                                            border = BorderStroke(1.dp, MbdAvailableGreen),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MbdAvailableGreen),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(46.dp)
+                                                .testTag("profile_action_view_shared_location")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Map,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = strings.viewSharedLocationBtn,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp
+                                            )
+                                        }
                                     }
                                 }
                             }
+                        } else {
+                            // Info bar for own profile
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MbdCrimsonLight.copy(alpha = 0.5f),
+                                border = BorderStroke(1.dp, MbdCrimson.copy(alpha = 0.2f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = MbdCrimson,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = if (strings.isBangla) "এটি আপনার নিজস্ব প্রোফাইল। নিজের জন্য আবেদন সক্রিয় নয়।" else "This is your own profile. Self-requests are disabled.",
+                                        fontSize = 13.sp,
+                                        color = MbdCrimson,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
+
 
                         // =========================================================================
                         // B. PERSONAL INFORMATION SECTION
@@ -1660,20 +1732,31 @@ fun DonorProfileDetailsScreen(
 private fun ProfileQuickStat(
     value: String,
     label: String,
-    valueColor: Color
+    valueColor: Color,
+    modifier: Modifier = Modifier
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text(
             text = value,
             fontWeight = FontWeight.ExtraBold,
             fontSize = 16.sp,
-            color = valueColor
+            color = valueColor,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(1.dp))
         Text(
             text = label,
             fontSize = 11.sp,
-            color = MbdTextSecondary
+            color = MbdTextSecondary,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            lineHeight = 13.sp,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -1732,13 +1815,14 @@ private fun ProfileInfoRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
-                fontSize = 11.sp,
-                color = MbdTextSecondary
+                fontSize = 12.sp,
+                color = MbdTextSecondary,
+                fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = value,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 color = valueColor,
                 fontWeight = if (isValueBold) FontWeight.Bold else FontWeight.Medium
             )

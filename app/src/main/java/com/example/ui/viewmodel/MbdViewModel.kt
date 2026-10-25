@@ -21,6 +21,9 @@ import com.example.ui.components.DonationCountdownEngine
 import com.example.ui.theme.MbdPreferencesManager
 import com.example.ui.theme.MbdThemeMode
 import com.google.firebase.Timestamp
+import com.example.util.UpdateInfo
+import com.example.util.DownloadState
+import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,7 +35,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 sealed interface UiState<out T> {
@@ -77,6 +82,7 @@ enum class AdminSubSection {
 
 class MbdViewModel(
     private val repository: MbdRepository,
+    private val application: android.app.Application,
     val currentUserId: String,
     val defaultDisplayName: String,
     val defaultEmail: String,
@@ -157,6 +163,48 @@ class MbdViewModel(
 
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+    private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
+    val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
+
+    val updateManager = com.example.util.UpdateManager(application)
+
+    private val lifecycleObserver = androidx.lifecycle.LifecycleEventObserver { _, event ->
+        if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+            checkForAppUpdates()
+        }
+    }
+
+    init {
+        androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        checkForAppUpdates()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
+        } catch (_: Exception) {}
+    }
+
+    fun checkForAppUpdates() {
+        viewModelScope.launch {
+            val info = updateManager.checkGitHubUpdate()
+            _updateInfo.value = info
+        }
+    }
+
+    val downloadState: StateFlow<com.example.util.DownloadState> = updateManager.downloadState
+
+    fun startDownloadUpdate(url: String) {
+        viewModelScope.launch {
+            updateManager.downloadApk(url)
+        }
+    }
+
+    fun resetDownloadState() {
+        updateManager.resetDownloadState()
+    }
 
     private val _selectedRequestId = MutableStateFlow<String?>(null)
     val selectedRequestId: StateFlow<String?> = _selectedRequestId.asStateFlow()
@@ -1093,6 +1141,16 @@ class MbdViewModel(
     }
 
     fun openRequestBloodForDonor(donor: DonorProfile) {
+        val isSelf = donor.userId == currentUserId || donor.id == currentUserId
+        val isBn = _language.value == "bn"
+        if (isSelf) {
+            _statusMessage.value = if (isBn) "নিজের কাছে রক্তের আবেদন পাঠানো সম্ভব নয়" else "You cannot send a blood request to yourself"
+            return
+        }
+        if (!donor.isAvailable) {
+            _statusMessage.value = if (isBn) "এই রক্তদাতা বর্তমানে রক্তদানের জন্য প্রস্তুত নন" else "This donor is currently unavailable for blood donation"
+            return
+        }
         _preselectedRequestDonor.value = donor
         navigateTo(MbdScreen.REQUEST_BLOOD)
     }
@@ -1486,6 +1544,8 @@ class MbdViewModel(
                     plateletsCount = eval.countsByType.plateletsCount,
                     plasmaCount = eval.countsByType.plasmaCount,
                     otherDonationCount = eval.countsByType.otherDonationCount,
+                    isAvailable = eval.nextEligibleDate.isBlank() || eval.nextEligibleDate == "UNDECIDED" || DonationCountdownEngine.computeCountdown(eval.lastDonationDate, eval.nextEligibleDate, eval.governingIntervalDays, eval.lastDonationType, eval.lastDonationTime).isZeroReached,
+                    availabilityStatus = if (eval.nextEligibleDate != "UNDECIDED" && !DonationCountdownEngine.computeCountdown(eval.lastDonationDate, eval.nextEligibleDate, eval.governingIntervalDays, eval.lastDonationType, eval.lastDonationTime).isZeroReached) "temporarily_unavailable" else "available",
                     updatedAt = Timestamp.now()
                 )
                 _guestUserProfile.value = UiState.Success(updatedUser)
@@ -1512,6 +1572,8 @@ class MbdViewModel(
                     plateletsCount = eval.countsByType.plateletsCount,
                     plasmaCount = eval.countsByType.plasmaCount,
                     otherDonationCount = eval.countsByType.otherDonationCount,
+                    isAvailable = updatedUser.isAvailable,
+                    availabilityStatus = updatedUser.availabilityStatus,
                     updatedAt = Timestamp.now()
                 )
                 _guestMyDonor.value = UiState.Success(updatedDonor)
@@ -1573,6 +1635,23 @@ class MbdViewModel(
                     val combinedRecords = listOf(record) + existingMyRecords
                     val eval = DonationCountdownEngine.evaluateMultiRecordEligibility(combinedRecords, rules)
 
+                    val isDonorAvailable = if (eval.nextEligibleDate.isNotBlank() && eval.nextEligibleDate != "UNDECIDED") {
+                        val cd = DonationCountdownEngine.computeCountdown(
+                            lastDonationDate = eval.lastDonationDate,
+                            explicitNextEligibleDate = eval.nextEligibleDate,
+                            intervalDays = eval.governingIntervalDays,
+                            donationType = eval.lastDonationType,
+                            lastDonationTime = eval.lastDonationTime,
+                            customDonationTypeName = eval.customDonationTypeName,
+                            ruleVersion = eval.governingRuleVersion
+                        )
+                        cd.isZeroReached
+                    } else if (eval.nextEligibleDate == "UNDECIDED") {
+                        false
+                    } else {
+                        true
+                    }
+
                     if (currentUser != null) {
                         repository.saveUserProfile(
                             currentUser.copy(
@@ -1586,7 +1665,9 @@ class MbdViewModel(
                                 wholeBloodCount = eval.countsByType.wholeBloodCount,
                                 plateletsCount = eval.countsByType.plateletsCount,
                                 plasmaCount = eval.countsByType.plasmaCount,
-                                otherDonationCount = eval.countsByType.otherDonationCount
+                                otherDonationCount = eval.countsByType.otherDonationCount,
+                                isAvailable = isDonorAvailable,
+                                availabilityStatus = if (!isDonorAvailable) "temporarily_unavailable" else "available"
                             )
                         )
                     }
@@ -1611,7 +1692,9 @@ class MbdViewModel(
                             wholeBloodCount = eval.countsByType.wholeBloodCount,
                             plateletsCount = eval.countsByType.plateletsCount,
                             plasmaCount = eval.countsByType.plasmaCount,
-                            otherDonationCount = eval.countsByType.otherDonationCount
+                            otherDonationCount = eval.countsByType.otherDonationCount,
+                            isAvailable = isDonorAvailable,
+                            availabilityStatus = if (!isDonorAvailable) "temporarily_unavailable" else "available"
                         )
                     )
                     _statusMessage.value = if (eval.isRuleUndecided) {
@@ -2336,6 +2419,88 @@ class MbdViewModel(
                 _statusMessage.value = e.localizedMessage ?: "Failed to stop live location sharing"
             }
         }
+    }
+
+    fun acceptBloodRequest(request: BloodRequest) {
+        val myDonor = (myDonorState.value as? UiState.Success)?.data
+        val isDonorAvailable = myDonor?.isAvailable == true
+        if (!isDonorAvailable) {
+            _statusMessage.value = if (_language.value == "bn") {
+                "আপনি বর্তমানে কোল্ডডাউন পিরিয়ডে আছেন (রক্তদানে প্রস্তুত নন)। এখন নতুন কোনো আবেদন গ্রহণ করা সম্ভব নয়।"
+            } else {
+                "You are currently in a cooldown period. You cannot accept new requests right now."
+            }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val donorName = myDonor?.fullName ?: "Donor"
+                repository.updateBloodRequestStatus(request.id, "accepted")
+                try {
+                    repository.updateBloodRequestLiveSessionMetadata(
+                        requestId = request.id,
+                        authorizedDonorId = currentUserId,
+                        authorizedDonorName = donorName,
+                        liveSessionActive = false,
+                        liveSessionExpiresAt = 0L
+                    )
+                } catch (ignored: Exception) {
+                }
+                _statusMessage.value = if (_language.value == "bn") {
+                    "আবেদনটি সফলভাবে গ্রহণ করা হয়েছে! আবেদনকারীর সাথে যোগাযোগ করুন।"
+                } else {
+                    "Request accepted! Please contact the requester."
+                }
+            } catch (e: Exception) {
+                _statusMessage.value = e.localizedMessage ?: "Failed to accept request"
+            }
+        }
+    }
+
+    fun confirmAndFulfillRequestWithDonation(request: BloodRequest, onSuccess: () -> Unit = {}) {
+        if (isCurrentUserBanned.value) {
+            _statusMessage.value = if (_language.value == "bn") {
+                "আপনার অ্যাকাউন্ট স্থগিত থাকায় রক্তদানের তথ্য যোগ করা সম্ভব নয়।"
+            } else {
+                "Your account is suspended."
+            }
+            return
+        }
+
+        val todayIso = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val nowTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+
+        val reqDonationType = request.donationType.ifBlank { "whole_blood" }
+        val reqBloodGroup = request.bloodGroup.ifBlank { "O+" }
+        val reqHospital = request.hospitalName.ifBlank { "Hospital" }
+        val reqLocation = request.location.ifBlank { "Mirpur, Dhaka" }
+        val reqPatient = request.patientName.ifBlank { "Patient" }
+
+        markRequestStatus(request.id, "completed")
+
+        recordBloodDonation(
+            donationDate = todayIso,
+            donationTime = nowTime,
+            donationType = reqDonationType,
+            hospitalName = reqHospital,
+            location = reqLocation,
+            recipientName = reqPatient,
+            bloodGroup = reqBloodGroup,
+            notes = if (_language.value == "bn") {
+                "রক্তদান সম্পন্ন - আবেদন #${request.id.takeLast(6).uppercase()}"
+            } else {
+                "Completed blood donation for request #${request.id.takeLast(6).uppercase()}"
+            },
+            verificationStatus = "verified",
+            onSuccess = {
+                _statusMessage.value = if (_language.value == "bn") {
+                    "রক্তদান সফলভাবে সম্পন্ন হিসেবে সংরক্ষিত হয়েছে! আপনার পরবর্তী রক্তদানের সময় পর্যন্ত কাউন্টডাউন শুরু হয়েছে।"
+                } else {
+                    "Blood donation recorded! Countdown timer started for your next eligible date."
+                }
+                onSuccess()
+            }
+        )
     }
 
     fun markRequestStatus(requestId: String, newStatus: String) {

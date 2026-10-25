@@ -1416,10 +1416,13 @@ fun AvailabilityStatusBadge(
     isAvailableFallback: Boolean,
     strings: MbdStrings,
     compact: Boolean = false,
+    forceTemporarilyUnavailable: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val resolved = when (availabilityStatus) {
-        "available", "temporarily_unavailable", "not_accepting" -> availabilityStatus
+    val resolved = when {
+        availabilityStatus == "not_accepting" -> "not_accepting"
+        forceTemporarilyUnavailable -> "temporarily_unavailable"
+        availabilityStatus in listOf("available", "temporarily_unavailable") -> availabilityStatus
         else -> if (isAvailableFallback) "available" else "temporarily_unavailable"
     }
 

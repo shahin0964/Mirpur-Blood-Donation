@@ -145,6 +145,7 @@ fun SettingsScreen(
     strings: MbdStrings,
     currentLanguage: String,
     currentThemeMode: MbdThemeMode = MbdPreferencesManager.themeModeFlow.collectAsStateWithLifecycle().value,
+    updateInfo: com.example.util.UpdateInfo? = null,
     onSelectLanguage: (String) -> Unit,
     onSelectThemeMode: (MbdThemeMode) -> Unit = { mode -> MbdPreferencesManager.setThemeMode(null, mode) },
     onOpenAppUpdate: () -> Unit = {},
@@ -260,8 +261,16 @@ fun SettingsScreen(
             SettingsClickableRowCard(
                 icon = Icons.Default.SystemUpdate,
                 title = strings.settingsAppUpdateRowTitle,
-                description = strings.settingsAppUpdateRowDesc,
-                currentValueBadge = "v${versionInfo.versionName}",
+                description = if (updateInfo?.requiresUpdate == true) {
+                    if (strings.isBangla) "নতুন আপডেট উপলব্ধ!" else "New update available!"
+                } else {
+                    strings.settingsAppUpdateRowDesc
+                },
+                currentValueBadge = if (updateInfo?.requiresUpdate == true) {
+                    if (strings.isBangla) "নতুন" else "NEW"
+                } else {
+                    "v${versionInfo.versionName}"
+                },
                 onClick = onOpenAppUpdate,
                 testTag = "settings_row_app_update"
             )
@@ -905,30 +914,25 @@ private fun ThemeOptionRow(
 @Composable
 fun AppUpdateScreen(
     strings: MbdStrings,
-    verifiedRemoteVersionName: String? = null,
-    verifiedRemoteVersionCode: Long? = null,
-    verifiedDistributionUrl: String? = null,
-    verifiedReleaseNotes: String? = null,
+    updateInfo: com.example.util.UpdateInfo? = null,
+    downloadState: com.example.util.DownloadState = com.example.util.DownloadState.Idle,
+    onCheckForUpdates: () -> Unit = {},
+    onStartDownload: (String) -> Unit = {},
+    onResetDownload: () -> Unit = {},
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
 
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val installedInfo = remember(context) { getInstalledAppVersionInfo(context) }
 
-    var isChecking by remember { mutableStateOf(false) }
-    var checkError by remember { mutableStateOf<String?>(null) }
-    var lastCheckedEpochMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var isCheckingLocally by remember { mutableStateOf(false) }
+    
+    val isVerifiedUpdateAvailable = updateInfo != null && updateInfo.requiresUpdate
 
-    val hasConfiguredEndpoint = !verifiedDistributionUrl.isNullOrBlank()
-    val isVerifiedUpdateAvailable = hasConfiguredEndpoint &&
-        verifiedRemoteVersionCode != null &&
-        verifiedRemoteVersionCode > installedInfo.versionCode
+    val resolvedLatestVersion = updateInfo?.latestVersionName ?: installedInfo.versionName
 
-    val resolvedLatestVersion = verifiedRemoteVersionName?.takeIf { it.isNotBlank() }
-        ?: installedInfo.versionName
-
+    val lastCheckedEpochMs = remember { System.currentTimeMillis() }
     val formattedCheckTime = remember(lastCheckedEpochMs) {
         SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(lastCheckedEpochMs))
     }
@@ -994,7 +998,7 @@ fun AppUpdateScreen(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = if (checkError != null) {
+                        color = if (downloadState is com.example.util.DownloadState.Error) {
                             MbdWarningAmber.copy(alpha = 0.15f)
                         } else if (isVerifiedUpdateAvailable) {
                             MbdCrimsonLight
@@ -1004,7 +1008,7 @@ fun AppUpdateScreen(
                         modifier = Modifier.size(68.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            if (isChecking) {
+                            if (isCheckingLocally || downloadState is com.example.util.DownloadState.Downloading) {
                                 CircularProgressIndicator(
                                     color = MbdCrimson,
                                     strokeWidth = 3.dp,
@@ -1013,13 +1017,13 @@ fun AppUpdateScreen(
                             } else {
                                 Icon(
                                     imageVector = when {
-                                        checkError != null -> Icons.Default.ErrorOutline
+                                        downloadState is com.example.util.DownloadState.Error -> Icons.Default.ErrorOutline
                                         isVerifiedUpdateAvailable -> Icons.Default.CloudDownload
                                         else -> Icons.Default.CheckCircle
                                     },
                                     contentDescription = null,
                                     tint = when {
-                                        checkError != null -> MbdWarningAmber
+                                        downloadState is com.example.util.DownloadState.Error -> MbdWarningAmber
                                         isVerifiedUpdateAvailable -> MbdCrimson
                                         else -> MbdAvailableGreen
                                     },
@@ -1102,7 +1106,7 @@ fun AppUpdateScreen(
                     HorizontalDivider(color = MbdBorderGray)
                     UpdateDetailRow(
                         label = strings.updateLatestVersionLabel,
-                        value = if (hasConfiguredEndpoint) {
+                        value = if (updateInfo != null) {
                             "v$resolvedLatestVersion"
                         } else {
                             "v${installedInfo.versionName}"
@@ -1128,8 +1132,8 @@ fun AppUpdateScreen(
                 }
             }
 
-            // Truthful Update Source Configuration Notice when no external endpoint/store URL is configured
-            if (!hasConfiguredEndpoint) {
+            // Update Source Configuration Notice
+            if (updateInfo == null) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MbdSurface),
@@ -1152,16 +1156,20 @@ fun AppUpdateScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 text = if (strings.isBangla) {
-                                    "আপডেট উৎস ও কনফিগারেশন তথ্য"
+                                    "আপডেট চেক করা হচ্ছে..."
                                 } else {
-                                    "Update Source Configuration"
+                                    "Checking for updates..."
                                 },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 color = MbdTextPrimary
                             )
                             Text(
-                                text = strings.updateNotConfiguredMessage,
+                                text = if (strings.isBangla) {
+                                    "সার্ভার থেকে আপডেটের তথ্য সংগ্রহ করা হচ্ছে। অনুগ্রহ করে অপেক্ষা করুন।"
+                                } else {
+                                    "Fetching update information from GitHub. Please wait."
+                                },
                                 fontSize = 13.sp,
                                 color = MbdTextSecondary,
                                 lineHeight = 19.sp
@@ -1172,7 +1180,8 @@ fun AppUpdateScreen(
             }
 
             // Release Notes Card if a verified update is available
-            if (isVerifiedUpdateAvailable && !verifiedReleaseNotes.isNullOrBlank()) {
+            val releaseNotes = if (strings.isBangla) updateInfo?.releaseNotesBn else updateInfo?.releaseNotesEn
+            if (isVerifiedUpdateAvailable && !releaseNotes.isNullOrBlank()) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MbdSurface),
@@ -1190,7 +1199,7 @@ fun AppUpdateScreen(
                             color = MbdCrimson
                         )
                         Text(
-                            text = verifiedReleaseNotes,
+                            text = releaseNotes,
                             fontSize = 13.sp,
                             color = MbdTextPrimary,
                             lineHeight = 19.sp
@@ -1200,7 +1209,7 @@ fun AppUpdateScreen(
             }
 
             // Error & Retry Banner if an update check encountered an error
-            if (checkError != null) {
+            if (downloadState is com.example.util.DownloadState.Error) {
                 Card(
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = MbdCrimsonLight),
@@ -1214,21 +1223,13 @@ fun AppUpdateScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = checkError!!,
+                            text = downloadState.message,
                             color = MbdCrimson,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         OutlinedButton(
-                            onClick = {
-                                checkError = null
-                                isChecking = true
-                                scope.launch {
-                                    delay(350)
-                                    lastCheckedEpochMs = System.currentTimeMillis()
-                                    isChecking = false
-                                }
-                            },
+                            onClick = onResetDownload,
                             border = BorderStroke(1.dp, MbdCrimson),
                             modifier = Modifier.testTag("retry_update_check_button")
                         ) {
@@ -1239,80 +1240,82 @@ fun AppUpdateScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = strings.updateRetryBtn, color = MbdCrimson)
+                            Text(text = if (strings.isBangla) "আবার চেষ্টা করুন" else "Retry", color = MbdCrimson)
                         }
                     }
                 }
             }
 
             // Action Buttons: "Check for Updates" & (when verified) "Update Now"
-            Button(
-                onClick = {
-                    checkError = null
-                    isChecking = true
-                    scope.launch {
-                        delay(350)
-                        lastCheckedEpochMs = System.currentTimeMillis()
-                        isChecking = false
-                    }
-                },
-                enabled = !isChecking,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .testTag("check_for_updates_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = strings.updateCheckBtn,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-            }
-
-            if (isVerifiedUpdateAvailable && !verifiedDistributionUrl.isNullOrBlank()) {
+            if (downloadState is com.example.util.DownloadState.Downloading) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { downloadState.progressPercent / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MbdCrimson,
+                        trackColor = MbdCrimsonLight
+                    )
+                    Text(
+                        text = if (strings.isBangla) "ডাউনলোড হচ্ছে: ${downloadState.progressPercent}%" else "Downloading: ${downloadState.progressPercent}%",
+                        fontSize = 12.sp,
+                        color = MbdTextSecondary
+                    )
+                }
+            } else {
                 Button(
-                    onClick = {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(verifiedDistributionUrl))
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            checkError = if (strings.isBangla) {
-                                "আপডেট লিংক খোলা সম্ভব হয়নি। অনুগ্রহ করে আবার চেষ্টা করুন।"
-                            } else {
-                                "Could not open official update URL. Please try again."
-                            }
-                        }
-                    },
+                    onClick = onCheckForUpdates,
+                    enabled = !isCheckingLocally,
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MbdAvailableGreen),
+                    colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
-                        .testTag("update_now_button")
+                        .testTag("check_for_updates_button")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CloudDownload,
+                        imageVector = Icons.Default.Refresh,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = strings.updateNowBtn,
+                        text = strings.updateCheckBtn,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     )
+                }
+
+                if (isVerifiedUpdateAvailable && updateInfo != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = { onStartDownload(updateInfo.downloadUrl) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MbdAvailableGreen),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .testTag("update_now_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = strings.updateNowBtn,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
                 }
             }
         }
