@@ -243,10 +243,23 @@
       },
       "required": ["supportEmail"]
     }
+    "UserRoleAssignment": {
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "role": { "type": "string" },
+        "permissions": { "type": "array", "items": { "type": "string" } },
+        "assignedByUid": { "type": "string" },
+        "assignedByEmail": { "type": "string" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "role"]
+    }
   },
   "collections": {
     "users": { "entity": "UserProfile", "documentId": "{userId}" },
     "donors": { "entity": "DonorProfile", "documentId": "{userId}" },
+    "user_roles": { "entity": "UserRoleAssignment", "documentId": "{userId}" },
     "blood_requests": { "entity": "BloodRequest", "documentId": "{requestId}" },
     "live_locations": { "entity": "LiveLocationSession", "documentId": "{requestId}" },
     "donation_history": { "entity": "DonationRecord", "documentId": "{recordId}" },

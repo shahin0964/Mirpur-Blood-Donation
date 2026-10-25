@@ -50,6 +50,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -97,17 +99,11 @@ import com.example.data.model.DonationRecord
 import com.example.data.model.DonorProfile
 import com.example.data.model.EligibilityRule
 import com.example.data.model.UserProfile
+import com.example.data.model.UserRoleAssignment
 import com.example.ui.components.AdminCorrectDonorDatesDialog
 import com.example.ui.components.AdminEligibilityRulesDialog
 import com.example.ui.i18n.MbdStrings
-import com.example.ui.theme.MbdAvailableGreen
-import com.example.ui.theme.MbdBorderGray
-import com.example.ui.theme.MbdCallGreen
-import com.example.ui.theme.MbdChipUnselected
-import com.example.ui.theme.MbdCrimson
-import com.example.ui.theme.MbdCrimsonLight
-import com.example.ui.theme.MbdSurface
-import com.example.ui.theme.MbdTextPrimary
+import com.example.ui.theme.*
 import com.example.ui.theme.MbdTextSecondary
 import com.example.ui.viewmodel.AdminSubSection
 import com.example.ui.viewmodel.UiState
@@ -134,11 +130,13 @@ fun AdminPanelScreen(
     announcementsState: UiState<List<AdminAnnouncement>>,
     appConfig: AppConfig,
     eligibilityRules: Map<String, EligibilityRule>,
+    allUserRoles: List<UserRoleAssignment> = emptyList(),
     // Actions
     onBanUser: (userId: String, reason: String) -> Unit,
     onUnbanUser: (userId: String) -> Unit,
     onDisableOrRestoreUser: (userId: String, disable: Boolean) -> Unit,
     onDeleteUser: (userId: String) -> Unit,
+    onAssignRole: (targetUserId: String, role: String, permissions: List<String>) -> Unit = { _, _, _ -> },
     onUpdateReportStatus: (reportId: String, status: String, notes: String) -> Unit,
     onModerateRequest: (requestId: String, newStatus: String, reason: String) -> Unit,
     onVerifyDonationRecord: (recordId: String, status: String, notes: String) -> Unit,
@@ -312,10 +310,12 @@ fun AdminPanelScreen(
                     usersState = usersState,
                     bansState = bansState,
                     donorsState = donorsState,
+                    allUserRoles = allUserRoles,
                     onBanUser = onBanUser,
                     onUnbanUser = onUnbanUser,
                     onDisableOrRestoreUser = onDisableOrRestoreUser,
                     onDeleteUser = onDeleteUser,
+                    onAssignRole = onAssignRole,
                     onOpenDonorProfile = onOpenDonorProfile
                 )
                 AdminSubSection.REPORTS -> AdminReportsView(
@@ -691,8 +691,9 @@ private fun StatMetricCard(
                 Text(
                     text = title,
                     fontSize = 11.sp,
+                    lineHeight = 14.sp,
                     color = MbdTextSecondary,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -729,10 +730,12 @@ private fun AdminUsersView(
     usersState: UiState<List<UserProfile>>,
     bansState: UiState<List<AdminUserBan>>,
     donorsState: UiState<List<DonorProfile>>,
+    allUserRoles: List<UserRoleAssignment> = emptyList(),
     onBanUser: (userId: String, reason: String) -> Unit,
     onUnbanUser: (userId: String) -> Unit,
     onDisableOrRestoreUser: (userId: String, disable: Boolean) -> Unit,
     onDeleteUser: (userId: String) -> Unit,
+    onAssignRole: (targetUserId: String, role: String, permissions: List<String>) -> Unit = { _, _, _ -> },
     onOpenDonorProfile: (DonorProfile) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -740,6 +743,7 @@ private fun AdminUsersView(
     var userToBan by remember { mutableStateOf<UserProfile?>(null) }
     var banReasonInput by remember { mutableStateOf("") }
     var userToDelete by remember { mutableStateOf<UserProfile?>(null) }
+    var userForRoleManagement by remember { mutableStateOf<UserProfile?>(null) }
 
     val allUsers = (usersState as? UiState.Success)?.data.orEmpty()
     val allBans = (bansState as? UiState.Success)?.data.orEmpty()
@@ -844,7 +848,18 @@ private fun AdminUsersView(
                 items(filteredUsers, key = { it.userId.ifBlank { it.id } }) { user ->
                     val isBanned = bannedUserIds.contains(user.userId)
                     val matchingDonor = allDonors.find { it.userId == user.userId }
-                    val isOwnerAdmin = user.userId == currentUserId
+                    val isOwnerAdmin = user.userId == currentUserId || user.email.equals("md.shahin0962@gmail.com", ignoreCase = true)
+                    val userRoleAssignment = allUserRoles.find { it.userId == user.userId }
+                    val assignedRoleLabel = when (userRoleAssignment?.role?.lowercase()) {
+                        "owner" -> "Owner"
+                        "admin" -> "Admin"
+                        "donation_manager" -> "Donation Mgr"
+                        "request_manager" -> "Request Mgr"
+                        "support_manager" -> "Support Mgr"
+                        "content_manager" -> "Content Mgr"
+                        "custom" -> "Custom Role"
+                        else -> if (isOwnerAdmin) "Owner" else "User"
+                    }
 
                     Card(
                         shape = RoundedCornerShape(14.dp),
@@ -856,7 +871,7 @@ private fun AdminUsersView(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (isBanned) Color(0xFFFFEBEE) else MbdCrimsonLight,
+                                    color = if (isBanned) MbdInfoCardBg else MbdCrimsonLight,
                                     modifier = Modifier.size(42.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -879,20 +894,18 @@ private fun AdminUsersView(
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
-                                        if (isOwnerAdmin) {
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = Color(0xFFE8F5E9)
-                                            ) {
-                                                Text(
-                                                    text = "Owner Admin",
-                                                    color = Color(0xFF2E7D32),
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 9.sp,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = if (isOwnerAdmin) Color(0xFFE8F5E9) else MbdCrimsonLight
+                                        ) {
+                                            Text(
+                                                text = assignedRoleLabel,
+                                                color = if (isOwnerAdmin) Color(0xFF2E7D32) else MbdCrimson,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 9.sp,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
                                         }
                                     }
                                     Text(
@@ -912,7 +925,7 @@ private fun AdminUsersView(
                                 }
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (isBanned) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
+                                    color = if (isBanned) MbdInfoCardBg else MbdAvailableGreen.copy(alpha = 0.15f)
                                 ) {
                                     Text(
                                         text = if (isBanned) "Banned" else "Active",
@@ -934,6 +947,25 @@ private fun AdminUsersView(
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Button(
+                                    onClick = { userForRoleManagement = user },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier
+                                        .height(34.dp)
+                                        .testTag("manage_role_button_${user.userId}")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AdminPanelSettings,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(if (strings.isBangla) "রোল ও পারমিশন" else "Role & Permissions", fontSize = 11.sp)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+
                                 if (matchingDonor != null) {
                                     OutlinedButton(
                                         onClick = { onOpenDonorProfile(matchingDonor) },
@@ -990,6 +1022,21 @@ private fun AdminUsersView(
                 }
             }
         }
+    }
+
+    // Role & Permissions Dialog
+    userForRoleManagement?.let { user ->
+        val currentAssignment = allUserRoles.find { it.userId == user.userId }
+        ManageRoleAndPermissionsDialog(
+            user = user,
+            currentRoleAssignment = currentAssignment,
+            strings = strings,
+            onDismiss = { userForRoleManagement = null },
+            onConfirm = { role, permissions ->
+                onAssignRole(user.userId, role, permissions)
+                userForRoleManagement = null
+            }
+        )
     }
 
     // Ban Confirmation Dialog
@@ -1059,6 +1106,177 @@ private fun AdminUsersView(
             }
         )
     }
+}
+
+@Composable
+private fun ManageRoleAndPermissionsDialog(
+    user: UserProfile,
+    currentRoleAssignment: UserRoleAssignment?,
+    strings: MbdStrings,
+    onDismiss: () -> Unit,
+    onConfirm: (role: String, permissions: List<String>) -> Unit
+) {
+    val predefinedRoles = listOf(
+        "owner" to (if (strings.isBangla) "Owner / System Admin — ওনার এডমিন" else "Owner / System Admin"),
+        "admin" to (if (strings.isBangla) "Admin — এডমিন" else "Admin"),
+        "donation_manager" to (if (strings.isBangla) "Donation Manager — রক্তদান ব্যবস্থাপক" else "Donation Manager"),
+        "request_manager" to (if (strings.isBangla) "Request Manager — রক্ত রিকুয়েস্ট ব্যবস্থাপক" else "Request Manager"),
+        "support_manager" to (if (strings.isBangla) "Support Manager — সাপোর্ট ও রিপোর্ট মডারেশন" else "Support Manager"),
+        "content_manager" to (if (strings.isBangla) "Content Manager — অ্যানাউন্সমেন্ট ও কনফিগ" else "Content Manager"),
+        "custom" to (if (strings.isBangla) "Custom Permissions — কাস্টম পারমিশন" else "Custom Permissions"),
+        "user" to (if (strings.isBangla) "Standard User — সাধারণ ব্যবহারকারী" else "Standard User")
+    )
+
+    val allPermissionsList = listOf(
+        "view_donors" to (if (strings.isBangla) "সকল রক্তদাতা তালিকা দেখা (view_donors)" else "View Donors Directory"),
+        "view_requests" to (if (strings.isBangla) "সকল রক্ত রিকুয়েস্ট দেখা (view_requests)" else "View Blood Requests"),
+        "manage_requests" to (if (strings.isBangla) "রক্ত রিকুয়েস্ট মডারেশন ও স্ট্যাটাস পরিবর্তন (manage_requests)" else "Manage Requests"),
+        "manage_donations" to (if (strings.isBangla) "রক্তদান রেকর্ড ও এলিজিবিলিটি রুলস পরিচালনা (manage_donations)" else "Manage Donations"),
+        "manage_users" to (if (strings.isBangla) "ইউজার রোল ও পারমিশন অ্যাসাইন (manage_users)" else "Manage Users & Roles"),
+        "manage_bans" to (if (strings.isBangla) "ইউজার ব্যান ও রিপোর্ট সমাধান (manage_bans)" else "Manage Bans & Reports"),
+        "manage_config" to (if (strings.isBangla) "অ্যানাউন্সমেন্ট ও সিস্টেম কনফিগ পরিবর্তন (manage_config)" else "Manage App Config")
+    )
+
+    var selectedRole by remember { mutableStateOf(currentRoleAssignment?.role ?: "user") }
+    var selectedPermissions by remember {
+        mutableStateOf(currentRoleAssignment?.permissions?.toSet() ?: emptySet())
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = if (strings.isBangla) "ইউজার ভূমিকা ও কাস্টম পারমিশন" else "User Role & Permissions",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = "${user.fullName} (${user.email.ifBlank { user.userId }})",
+                    fontSize = 12.sp,
+                    color = MbdTextSecondary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = if (strings.isBangla) "ভূমিকা নির্বাচন করুন (Predefined Role):" else "Select Role:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = MbdTextPrimary
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    predefinedRoles.forEach { (roleKey, roleLabel) ->
+                        val isSel = selectedRole.equals(roleKey, ignoreCase = true)
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSel) MbdCrimsonLight else MbdSubtleSurface,
+                            border = BorderStroke(1.dp, if (isSel) MbdCrimson else MbdBorderGray),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedRole = roleKey
+                                    if (roleKey in listOf("owner", "admin")) {
+                                        selectedPermissions = allPermissionsList.map { it.first }.toSet()
+                                    } else if (roleKey == "donation_manager") {
+                                        selectedPermissions = setOf("view_donors", "view_requests", "manage_donations")
+                                    } else if (roleKey == "request_manager") {
+                                        selectedPermissions = setOf("view_donors", "view_requests", "manage_requests")
+                                    } else if (roleKey == "support_manager") {
+                                        selectedPermissions = setOf("view_donors", "view_requests", "manage_bans")
+                                    } else if (roleKey == "content_manager") {
+                                        selectedPermissions = setOf("view_donors", "view_requests", "manage_config")
+                                    } else if (roleKey == "user") {
+                                        selectedPermissions = emptySet()
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isSel) "🔘" else "⚪",
+                                    fontSize = 12.sp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = roleLabel,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSel) MbdCrimson else MbdTextPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MbdBorderGray)
+
+                Text(
+                    text = if (strings.isBangla) "দানাদার পারমিশন চেকপয়েন্ট (Granular Permissions):" else "Granular Permissions:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = MbdTextPrimary
+                )
+
+                allPermissionsList.forEach { (permKey, permLabel) ->
+                    val isChecked = permKey in selectedPermissions
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selectedPermissions = if (isChecked) {
+                                    selectedPermissions - permKey
+                                } else {
+                                    selectedPermissions + permKey
+                                }
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = isChecked,
+                            onCheckedChange = { checked ->
+                                selectedPermissions = if (checked) {
+                                    selectedPermissions + permKey
+                                } else {
+                                    selectedPermissions - permKey
+                                }
+                            },
+                            colors = CheckboxDefaults.colors(checkedColor = MbdCrimson)
+                        )
+                        Text(
+                            text = permLabel,
+                            fontSize = 12.sp,
+                            color = MbdTextPrimary,
+                            lineHeight = 15.sp
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedRole, selectedPermissions.toList()) },
+                colors = ButtonDefaults.buttonColors(containerColor = MbdCrimson),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(if (strings.isBangla) "ভূমিকা ও পারমিশন সংরক্ষণ" else "Save Role")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(strings.cancelBtn)
+            }
+        }
+    )
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -1217,12 +1435,12 @@ private fun AdminReportsView(
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFF5F5F5),
+                                    color = MbdSubtleSurface,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = "Admin Note: ${report.adminNotes}",
-                                        color = Color.DarkGray,
+                                        color = MbdTextSecondary,
                                         fontSize = 11.sp,
                                         modifier = Modifier.padding(8.dp)
                                     )
@@ -1549,8 +1767,8 @@ private fun AdminRequestsView(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFFFF8E1),
-                                    border = BorderStroke(1.dp, Color(0xFFFFE082))
+                                    color = MbdWarningCardBg,
+                                    border = BorderStroke(1.dp, MbdWarningCardBorder)
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1755,7 +1973,7 @@ private fun AdminDonorVerificationView(
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = if (rec.verificationStatus == "verified") Color(0xFFE8F5E9) else Color(0xFFFFF3E0)
+                                        color = if (rec.verificationStatus == "verified") MbdAvailableGreen.copy(alpha = 0.15f) else MbdWarningCardBg
                                     ) {
                                         Text(
                                             text = rec.verificationStatus.uppercase(),
@@ -2077,7 +2295,7 @@ private fun AdminAnnouncementsView(
                         Card(
                             shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (ann.isEmergency) Color(0xFFFFF5F5) else MbdSurface
+                                containerColor = if (ann.isEmergency) MbdInfoCardBg else MbdSurface
                             ),
                             border = if (ann.isEmergency) BorderStroke(1.dp, Color(0xFFEF9A9A)) else null,
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),

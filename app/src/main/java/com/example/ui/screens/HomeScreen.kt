@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -114,7 +116,7 @@ fun HomeScreen(
     ) {
         // Top Header Bar matching Reference Screen 2
         Surface(
-            color = Color.White,
+            color = MbdSurface,
             shadowElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -633,7 +635,7 @@ fun QuickActionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .padding(horizontal = 10.dp, vertical = 12.dp)
         ) {
             Box(
                 modifier = Modifier.size(34.dp),
@@ -643,11 +645,11 @@ fun QuickActionCard(
                     imageVector = icon,
                     contentDescription = title,
                     tint = MbdCrimson,
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(28.dp)
                 )
                 if (isHeartPulse) {
                     // Subtle white ECG pulse line across heart icon matching Reference Screen 2
-                    Canvas(modifier = Modifier.size(30.dp)) {
+                    Canvas(modifier = Modifier.size(28.dp)) {
                         val w = size.width
                         val h = size.height
                         val pulse = Path().apply {
@@ -666,21 +668,23 @@ fun QuickActionCard(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = title,
                 fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
                 color = MbdTextPrimary,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
                 color = MbdTextSecondary,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
@@ -772,7 +776,7 @@ fun RecentRequestCard(
                         text = "${request.donationTypeLabel(strings.isBangla)} • ${request.hospitalName}, ${request.location}",
                         fontSize = 12.sp,
                         color = MbdTextSecondary,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(2.dp))
@@ -890,6 +894,7 @@ fun BloodRequestDetailDialog(
     onMarkFulfilled: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val scrollState = androidx.compose.foundation.rememberScrollState()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -912,7 +917,10 @@ fun BloodRequestDetailDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 DetailRow(
                     label = strings.patientNameLabel,
                     value = request.patientName

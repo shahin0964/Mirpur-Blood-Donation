@@ -60,13 +60,7 @@ import com.example.data.model.DONATION_TYPE_OPTIONS
 import com.example.data.model.DonationRecord
 import com.example.data.model.EligibilityRule
 import com.example.ui.i18n.MbdStrings
-import com.example.ui.theme.MbdAvailableGreen
-import com.example.ui.theme.MbdBorderGray
-import com.example.ui.theme.MbdChipUnselected
-import com.example.ui.theme.MbdCrimson
-import com.example.ui.theme.MbdCrimsonLight
-import com.example.ui.theme.MbdTextPrimary
-import com.example.ui.theme.MbdTextSecondary
+import com.example.ui.theme.*
 
 /**
  * Bangla-First Donation Record Form Dialog (Sections 2, 3, 4 & 8 of Prompt).
@@ -200,7 +194,7 @@ fun RecordBloodDonationDialog(
                         val ruleForOpt = eligibilityRules[option.code] ?: DEFAULT_ELIGIBILITY_RULES[option.code]
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) MbdCrimsonLight.copy(alpha = 0.72f) else Color(0xFFF8FAFC),
+                            color = if (isSelected) MbdCrimsonLight.copy(alpha = 0.72f) else MbdSubtleSurface,
                             border = BorderStroke(
                                 if (isSelected) 1.5.dp else 1.dp,
                                 if (isSelected) MbdCrimson else MbdBorderGray
@@ -307,8 +301,8 @@ fun RecordBloodDonationDialog(
                 if (!isRuleVerifiedForType || previewNextEligible == "UNDECIDED") {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFFFF8E1),
-                        border = BorderStroke(1.dp, Color(0xFFFFB300)),
+                        color = MbdWarningCardBg,
+                        border = BorderStroke(1.dp, MbdWarningCardBorder),
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("dialog_undecided_rule_notice")
@@ -507,7 +501,7 @@ fun RecordBloodDonationDialog(
                 // Verification Status Option (Confirmed vs Pending Admin Verification)
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFF8FAFC),
+                    color = MbdSubtleSurface,
                     border = BorderStroke(1.dp, MbdBorderGray),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -843,7 +837,7 @@ fun AdminEligibilityRulesDialog(
                         val isSelected = selectedType == opt.code
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) MbdCrimsonLight.copy(alpha = 0.7f) else Color(0xFFF8FAFC),
+                            color = if (isSelected) MbdCrimsonLight.copy(alpha = 0.7f) else MbdSubtleSurface,
                             border = BorderStroke(1.dp, if (isSelected) MbdCrimson else MbdBorderGray),
                             modifier = Modifier
                                 .fillMaxWidth()

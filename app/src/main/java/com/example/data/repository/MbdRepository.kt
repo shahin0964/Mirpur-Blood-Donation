@@ -14,6 +14,7 @@ import com.example.data.model.DonorProfile
 import com.example.data.model.EligibilityRule
 import com.example.data.model.LiveLocationSession
 import com.example.data.model.UserProfile
+import com.example.data.model.UserRoleAssignment
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.auth
@@ -618,6 +619,59 @@ class MbdRepository(private val db: FirebaseFirestore) {
                     .sortedByDescending { it.createdAt ?: Timestamp(0, 0) }
             }
             .catch { emit(emptyList()) }
+    }
+
+    fun observeUserRoleAssignment(userId: String): Flow<UserRoleAssignment?> {
+        val path = "user_roles/$userId"
+        return db.collection("user_roles").document(userId)
+            .snapshots()
+            .map { snapshot ->
+                if (snapshot.exists()) {
+                    snapshot.toObject(UserRoleAssignment::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                } else {
+                    null
+                }
+            }
+            .catch { emit(null) }
+    }
+
+    fun observeAllUserRoles(): Flow<List<UserRoleAssignment>> {
+        return db.collection("user_roles")
+            .snapshots()
+            .map { snapshot ->
+                snapshot.toObjects(UserRoleAssignment::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            }
+            .catch { emit(emptyList()) }
+    }
+
+    suspend fun assignUserRole(
+        targetUserId: String,
+        role: String,
+        permissions: List<String>,
+        adminUid: String,
+        adminEmail: String
+    ) {
+        requireUserId()
+        val docRef = db.collection("user_roles").document(targetUserId)
+        val data = mapOf(
+            "role" to role,
+            "permissions" to permissions,
+            "assignedByUid" to adminUid,
+            "assignedByEmail" to adminEmail,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        docRef.set(data).await()
+        logAdminAction(
+            AdminLog(
+                adminUid = adminUid,
+                adminEmail = adminEmail,
+                actionType = "ROLE_ASSIGNED",
+                targetId = targetUserId,
+                targetType = "user",
+                reason = "Assigned role=$role with permissions=$permissions",
+                status = "success"
+            )
+        )
     }
 
     fun observeAllBans(): Flow<List<AdminUserBan>> {

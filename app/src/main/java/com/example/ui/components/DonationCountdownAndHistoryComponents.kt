@@ -73,15 +73,7 @@ import com.example.data.model.DonationRecord
 import com.example.data.model.DonorProfile
 import com.example.data.model.EligibilityRule
 import com.example.ui.i18n.MbdStrings
-import com.example.ui.theme.MbdAvailableGreen
-import com.example.ui.theme.MbdBorderGray
-import com.example.ui.theme.MbdCrimson
-import com.example.ui.theme.MbdCrimsonDark
-import com.example.ui.theme.MbdCrimsonLight
-import com.example.ui.theme.MbdSoftPinkAlert
-import com.example.ui.theme.MbdSurface
-import com.example.ui.theme.MbdTextPrimary
-import com.example.ui.theme.MbdTextSecondary
+import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -828,7 +820,7 @@ fun LiveDonationCountdownCard(
                     // পরবর্তী সম্ভাব্য তারিখ: প্রযোজ্য নিয়ম অনুযায়ী নির্ধারিত (...) OR পরবর্তী তারিখ নির্ধারণ করা যায়নি
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF8FAFC),
+                        color = MbdSubtleSurface,
                         border = BorderStroke(1.dp, MbdBorderGray),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -880,8 +872,8 @@ fun LiveDonationCountdownCard(
                         // Unconfigured / Unknown Donation Type ("other") State -> Stop Countdown!
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFFFFF8E1),
-                            border = BorderStroke(1.5.dp, Color(0xFFFFB300)),
+                            color = MbdWarningCardBg,
+                            border = BorderStroke(1.5.dp, MbdWarningCardBorder),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("countdown_undecided_banner")
@@ -1025,7 +1017,7 @@ fun LiveDonationCountdownCard(
 
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFFDF2F4),
+                        color = MbdInfoCardBg,
                         border = BorderStroke(1.dp, MbdCrimson.copy(alpha = 0.18f)),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1086,8 +1078,8 @@ fun LiveDonationCountdownCard(
                 if (pendingDonationsCount > 0) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFFFF8E1),
-                        border = BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.5f)),
+                        color = MbdWarningCardBg,
+                        border = BorderStroke(1.dp, MbdWarningCardBorder.copy(alpha = 0.5f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -1118,7 +1110,7 @@ fun LiveDonationCountdownCard(
                 // Medical Disclaimer (Required by Section 7 of prompt)
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFF8FAFC),
+                    color = MbdSubtleSurface,
                     border = BorderStroke(1.dp, MbdBorderGray),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1281,7 +1273,7 @@ private fun CountdownUnitTile(
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = if (isHighlight) MbdCrimson else Color(0xFFFDF2F4),
+        color = if (isHighlight) MbdCrimson else MbdInfoCardBg,
         border = BorderStroke(
             1.dp,
             if (isHighlight) MbdCrimsonDark else MbdCrimson.copy(alpha = 0.25f)
@@ -1361,8 +1353,8 @@ fun CompactDonorCardCountdownBadge(
 
     val (bgColor, borderColor, textColor) = when {
         breakdown.isRuleUndecided -> Triple(
-            Color(0xFFFFF8E1),
-            Color(0xFFFFB300).copy(alpha = 0.5f),
+            MbdWarningCardBg,
+            MbdWarningCardBorder.copy(alpha = 0.5f),
             Color(0xFFBF360C)
         )
         breakdown.isZeroReached -> Triple(
@@ -1447,8 +1439,8 @@ fun AvailabilityStatusBadge(
             }
         )
         else -> Triple(
-            Color(0xFFFFF8E1),
-            Color(0xFFE65100),
+            MbdWarningCardBg,
+            MbdWarningCardIcon,
             if (compact) strings.unavailableBadge else strings.availabilityTemporarilyUnavailable
         )
     }
@@ -1522,7 +1514,7 @@ fun DonorAvailabilityStatusSelector(
             val (icon, tint) = iconAndTint
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = if (isSelected) tint.copy(alpha = 0.1f) else Color(0xFFF8FAFC),
+                color = if (isSelected) tint.copy(alpha = 0.22f) else MbdSubtleSurface,
                 border = BorderStroke(
                     width = if (isSelected) 1.5.dp else 1.dp,
                     color = if (isSelected) tint else MbdBorderGray
@@ -1601,7 +1593,10 @@ fun DonationHistoryTimelineSection(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Surface(
                         shape = CircleShape,
                         color = MbdCrimsonLight,
@@ -1617,12 +1612,14 @@ fun DonationHistoryTimelineSection(
                         }
                     }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = strings.donationHistoryTimelineTitle,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = MbdTextPrimary
+                            fontSize = 14.sp,
+                            color = MbdTextPrimary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                         val confirmedCount = records.count { it.verificationStatus == "verified" }
                         Text(
@@ -1632,29 +1629,44 @@ fun DonationHistoryTimelineSection(
                                 "Total Confirmed Donations: $confirmedCount"
                             },
                             fontSize = 11.sp,
-                            color = MbdTextSecondary
+                            color = MbdTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
                 if (onRecordDonationClick != null) {
-                    TextButton(
-                        onClick = onRecordDonationClick,
-                        modifier = Modifier.testTag("timeline_add_donation_button")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MbdCrimsonLight,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onRecordDonationClick() }
+                            .testTag("timeline_add_donation_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AddCircle,
-                            contentDescription = null,
-                            tint = MbdCrimson,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = strings.recordNewDonationBtn,
-                            color = MbdCrimson,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddCircle,
+                                contentDescription = null,
+                                tint = MbdCrimson,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = strings.recordNewDonationBtn,
+                                color = MbdCrimson,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -1693,7 +1705,7 @@ fun DonationHistoryTimelineSection(
 
                     Surface(
                         shape = RoundedCornerShape(14.dp),
-                        color = if (isPending) Color(0xFFFFFBF0) else Color(0xFFF8FAFC),
+                        color = if (isPending) MbdPendingCardBg else MbdSubtleSurface,
                         border = BorderStroke(
                             1.dp,
                             if (isPending) Color(0xFFFFB300).copy(alpha = 0.45f) else MbdBorderGray
@@ -1752,7 +1764,7 @@ fun DonationHistoryTimelineSection(
                                     shape = RoundedCornerShape(50),
                                     color = when {
                                         isVerified -> MbdAvailableGreen.copy(alpha = 0.14f)
-                                        isPending -> Color(0xFFFFF3E0)
+                                        isPending -> MbdWarningCardBg
                                         else -> MbdCrimsonLight
                                     }
                                 ) {

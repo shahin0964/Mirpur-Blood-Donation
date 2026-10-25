@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -622,12 +623,12 @@ fun RequestBloodScreen(
                 )
             }
 
-            // 7. Bags Needed & Urgency Level Row
-            Row(
+            // 7. Bags Needed & Urgency Level
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column {
                     Text(
                         text = strings.bagsNeededLabel,
                         fontWeight = FontWeight.SemiBold,
@@ -635,8 +636,13 @@ fun RequestBloodScreen(
                         color = MbdTextPrimary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(1L, 2L, 3L, 4L).forEach { count ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(1L, 2L, 3L, 4L, 5L).forEach { count ->
                             val selected = bagsNeeded == count
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
@@ -650,14 +656,14 @@ fun RequestBloodScreen(
                                     color = if (selected) Color.White else MbdTextPrimary,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                Column(modifier = Modifier.weight(1.2f)) {
+                Column {
                     Text(
                         text = strings.urgencyLabel,
                         fontWeight = FontWeight.SemiBold,
@@ -665,7 +671,12 @@ fun RequestBloodScreen(
                         color = MbdTextPrimary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         listOf("Emergency", "Urgent", "Standard").forEach { level ->
                             val selected = urgency == level
                             val label = if (strings.isBangla) {
@@ -688,8 +699,8 @@ fun RequestBloodScreen(
                                     text = label,
                                     color = if (selected) Color.White else MbdTextPrimary,
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 11.sp,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                 )
                             }
                         }

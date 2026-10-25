@@ -44,3 +44,26 @@ val MbdTextSecondary: Color
 
 val MbdTextHint: Color
     get() = if (MbdThemeState.isDarkEffective) Color(0xFF727A8A) else Color(0xFF949BA8)
+
+// Dark-mode aware surface and container helpers
+val MbdSubtleSurface: Color
+    get() = if (MbdThemeState.isDarkEffective) Color(0xFF232832) else Color(0xFFF8FAFC)
+
+val MbdWarningCardBg: Color
+    get() = if (MbdThemeState.isDarkEffective) Color(0xFF332B12) else Color(0xFFFFF8E1)
+
+val MbdWarningCardBorder: Color
+    get() = if (MbdThemeState.isDarkEffective) Color(0xFF8A6B00) else Color(0xFFFFB300)
+
+val MbdWarningCardText: Color
+    get() = if (MbdThemeState.isDarkEffective) Color(0xFFFFD54F) else Color(0xFFBF360C)
+
+val MbdWarningCardIcon: Color
+    get() = if (MbdThemeState.isDarkEffective) Color(0xFFFFB74D) else Color(0xFFE65100)
+
+val MbdInfoCardBg: Color
+    get() = if (MbdThemeState.isDarkEffective) Color(0xFF3B181E) else Color(0xFFFDF2F4)
+
+val MbdPendingCardBg: Color
+    get() = if (MbdThemeState.isDarkEffective) Color(0xFF332A15) else Color(0xFFFFFBF0)
+

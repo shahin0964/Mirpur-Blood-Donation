@@ -745,3 +745,55 @@ data class UserAccountRecord(
     val createdAt: Timestamp? = null
 )
 
+@IgnoreExtraProperties
+data class UserRoleAssignment(
+    @DocumentId val userId: String = "",
+    val role: String = "user",
+    val permissions: List<String> = emptyList(),
+    val assignedByUid: String = "",
+    val assignedByEmail: String = "",
+    @ServerTimestamp val createdAt: Timestamp? = null,
+    @ServerTimestamp val updatedAt: Timestamp? = null
+) {
+    fun effectivePermissions(): Set<String> {
+        val predefined = when (role.lowercase()) {
+            "owner", "admin" -> setOf(
+                "view_donors", "view_requests", "manage_requests",
+                "manage_donations", "manage_users", "manage_bans", "manage_config"
+            )
+            "donation_manager" -> setOf(
+                "view_donors", "view_requests", "manage_donations"
+            )
+            "request_manager" -> setOf(
+                "view_donors", "view_requests", "manage_requests"
+            )
+            "support_manager" -> setOf(
+                "view_donors", "view_requests", "manage_bans"
+            )
+            "content_manager" -> setOf(
+                "view_donors", "view_requests", "manage_config"
+            )
+            else -> emptySet()
+        }
+        return predefined + permissions.toSet()
+    }
+
+    fun hasPermission(perm: String): Boolean {
+        if (role.lowercase() in listOf("owner", "admin")) return true
+        return perm in effectivePermissions()
+    }
+
+    fun canAccessAdminPanel(): Boolean {
+        return role.lowercase() in listOf("owner", "admin", "donation_manager", "request_manager", "support_manager", "content_manager", "custom") || permissions.isNotEmpty()
+    }
+
+    fun toMap(): Map<String, Any> = mapOf(
+        "role" to role,
+        "permissions" to permissions,
+        "assignedByUid" to assignedByUid,
+        "assignedByEmail" to assignedByEmail,
+        "updatedAt" to FieldValue.serverTimestamp()
+    )
+}
+
+

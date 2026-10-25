@@ -16,101 +16,129 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
+    function isOwner() {
       return isAuthenticated() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
         (request.auth.token.email != null && request.auth.token.email.lower() == 'md.shahin0962@gmail.com') ||
         request.auth.token.admin == true
       );
     }
 
-    // 1. User Profiles (/users/{userId})
-    match /users/{userId} {
-      allow read: if isUser(userId) || isAdmin();
-      allow write: if isUser(userId) || isAdmin();
+    function hasUserRoleDoc() {
+      return exists(/databases/$(database)/documents/user_roles/$(request.auth.uid));
     }
 
-    // 2. Donor Profiles (/donors/{userId})
+    function getUserRoleDoc() {
+      return get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data;
+    }
+
+    function hasPermission(perm) {
+      return isAuthenticated() && (
+        isOwner() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (hasUserRoleDoc() && (
+          getUserRoleDoc().role in ['owner', 'admin'] ||
+          perm in getUserRoleDoc().permissions
+        ))
+      );
+    }
+
+    function isAdmin() {
+      return hasPermission('manage_users');
+    }
+
+    // 1. User Roles Assignment (/user_roles/{userId})
+    match /user_roles/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if hasPermission('manage_users');
+    }
+
+    // 2. User Profiles (/users/{userId})
+    match /users/{userId} {
+      allow read: if isUser(userId) || hasPermission('manage_users');
+      allow write: if isUser(userId) || hasPermission('manage_users');
+    }
+
+    // 3. Donor Profiles (/donors/{userId})
     match /donors/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isUser(userId) || isAdmin();
+      allow write: if isUser(userId) || hasPermission('manage_users');
     }
 
-    // 3. Blood Requests (/blood_requests/{requestId})
+    // 4. Blood Requests (/blood_requests/{requestId})
     match /blood_requests/{requestId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update, delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || hasPermission('manage_requests');
     }
 
-    // 4. Live Location Sessions (/live_locations/{requestId})
+    // 5. Live Location Sessions (/live_locations/{requestId})
     match /live_locations/{requestId} {
       allow read: if isAuthenticated() && (
         resource.data.requesterId == request.auth.uid ||
         resource.data.authorizedDonorId == request.auth.uid ||
-        isAdmin()
+        hasPermission('manage_requests')
       );
       allow create: if isAuthenticated() && request.resource.data.requesterId == request.auth.uid;
       allow update: if isAuthenticated() && (
         resource.data.requesterId == request.auth.uid ||
         resource.data.authorizedDonorId == request.auth.uid ||
-        isAdmin()
+        hasPermission('manage_requests')
       );
       allow delete: if isAuthenticated() && (
         resource.data.requesterId == request.auth.uid ||
-        isAdmin()
+        hasPermission('manage_requests')
       );
     }
 
-    // 5. Donation History (/donation_history/{recordId})
+    // 6. Donation History (/donation_history/{recordId})
     match /donation_history/{recordId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update, delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || hasPermission('manage_donations');
     }
 
-    // 6. Eligibility Rules (/eligibility_rules/{ruleId})
+    // 7. Eligibility Rules (/eligibility_rules/{ruleId})
     match /eligibility_rules/{ruleId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if hasPermission('manage_donations');
     }
 
-    // 7. Admins Directory (/admins/{userId})
+    // 8. Admins Directory (/admins/{userId})
     match /admins/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if hasPermission('manage_users');
     }
 
-    // 8. Banned Users (/bans/{userId})
+    // 9. Banned Users (/bans/{userId})
     match /bans/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if hasPermission('manage_bans');
     }
 
-    // 9. User Reports (/reports/{reportId})
+    // 10. User Reports (/reports/{reportId})
     match /reports/{reportId} {
-      allow read: if isAdmin();
+      allow read: if hasPermission('manage_bans');
       allow create: if isAuthenticated() && request.resource.data.reporterUid == request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow update, delete: if hasPermission('manage_bans');
     }
 
-    // 10. Audit Logs (/admin_logs/{logId})
+    // 11. Audit Logs (/admin_logs/{logId})
     match /admin_logs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin();
+      allow read: if hasPermission('manage_users');
+      allow create: if hasPermission('manage_users') || hasPermission('manage_requests') || hasPermission('manage_donations') || hasPermission('manage_bans') || hasPermission('manage_config');
       allow update, delete: if false;
     }
 
-    // 11. Admin Announcements (/admin_announcements/{announcementId})
+    // 12. Admin Announcements (/admin_announcements/{announcementId})
     match /admin_announcements/{announcementId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if hasPermission('manage_config');
     }
 
-    // 12. Application Configuration (/app_config/{configId})
+    // 13. Application Configuration (/app_config/{configId})
     match /app_config/{configId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if hasPermission('manage_config');
     }
   }
 }

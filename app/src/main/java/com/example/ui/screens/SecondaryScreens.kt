@@ -35,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
@@ -403,7 +404,9 @@ fun ProfileAndDonorRegistrationScreen(
         eligibilityIntervalDays: Long,
         showPhonePublicly: Boolean,
         shareLocationArea: Boolean,
-        showDonationHistoryPublicly: Boolean
+        showDonationHistoryPublicly: Boolean,
+        age: String,
+        gender: String
     ) -> Unit,
     onRecordBloodDonation: (
         donationDate: String,
@@ -466,6 +469,8 @@ fun ProfileAndDonorRegistrationScreen(
     var shareLocationArea by remember { mutableStateOf(existingDonor?.shareLocationArea ?: true) }
     var showDonationHistoryPublicly by remember { mutableStateOf(existingDonor?.showDonationHistoryPublicly ?: true) }
     var notificationsEnabled by remember { mutableStateOf(existingUser?.notificationsEnabled ?: true) }
+    var age by remember { mutableStateOf(existingDonor?.age ?: "") }
+    var gender by remember { mutableStateOf(existingDonor?.gender ?: "") }
     var totalDonations by remember { mutableLongStateOf(existingDonor?.totalDonations ?: 0L) }
 
     var showRecordDonationDialog by remember { mutableStateOf(false) }
@@ -495,6 +500,8 @@ fun ProfileAndDonorRegistrationScreen(
             showDonationHistoryPublicly = existingDonor.showDonationHistoryPublicly
             totalDonations = existingDonor.totalDonations
             availabilityStatus = existingDonor.resolvedAvailabilityStatus()
+            age = existingDonor.age
+            gender = existingDonor.gender
             if (existingDonor.lastDonationDate.isNotBlank()) {
                 lastDonationDate = existingDonor.lastDonationDate
                 nextEligibleDate = existingDonor.nextEligibleDate
@@ -833,6 +840,34 @@ fun ProfileAndDonorRegistrationScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
+                                text = if (strings.isBangla) "পাবলিকভাবে ফোন নম্বর দেখান" else "Show Phone Number Publicly",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = MbdTextPrimary
+                            )
+                            Text(
+                                text = if (strings.isBangla) "রক্তপ্রার্থীদের সরাসরি ফোন করার অনুমতি দিন" else "Allow blood requesters to see & call your number",
+                                fontSize = 11.sp,
+                                color = MbdTextSecondary
+                            )
+                        }
+                        Switch(
+                            checked = showPhonePublicly,
+                            onCheckedChange = { showPhonePublicly = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = MbdCrimson
+                            ),
+                            modifier = Modifier.testTag("show_phone_publicly_switch")
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
                                 text = strings.showDonationHistoryPubliclyLabel,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp,
@@ -922,6 +957,59 @@ fun ProfileAndDonorRegistrationScreen(
                             .testTag("profile_phone_input")
                     )
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = age,
+                            onValueChange = { age = it },
+                            label = { Text(if (strings.isBangla) "বয়স" else "Age") },
+                            leadingIcon = { Icon(Icons.Default.Cake, contentDescription = null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("profile_age_input")
+                        )
+
+                        Column(modifier = Modifier.weight(1.3f)) {
+                            Text(
+                                text = if (strings.isBangla) "লিঙ্গ" else "Gender",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                color = MbdTextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                val genderOptions = listOf(
+                                    "male" to if (strings.isBangla) "পুরুষ" else "Male",
+                                    "female" to if (strings.isBangla) "নারী" else "Female"
+                                )
+                                genderOptions.forEach { (gCode, gLabel) ->
+                                    val isSel = gender.equals(gCode, ignoreCase = true) || gender == gLabel
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = if (isSel) MbdCrimson else MbdChipUnselected,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50))
+                                            .clickable { gender = gCode }
+                                            .testTag("profile_gender_$gCode")
+                                    ) {
+                                        Text(
+                                            text = gLabel,
+                                            color = if (isSel) Color.White else MbdTextPrimary,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Text(
                         text = strings.areaLabel,
                         fontWeight = FontWeight.SemiBold,
@@ -999,7 +1087,9 @@ fun ProfileAndDonorRegistrationScreen(
                                 eligibilityIntervalDays,
                                 showPhonePublicly,
                                 shareLocationArea,
-                                showDonationHistoryPublicly
+                                showDonationHistoryPublicly,
+                                age,
+                                gender
                             )
                         },
                         enabled = !isSaving,

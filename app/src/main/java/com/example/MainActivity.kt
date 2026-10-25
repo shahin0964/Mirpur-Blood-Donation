@@ -275,6 +275,7 @@ fun MbdAuthenticatedShell(
     val adminAnnouncementsState by viewModel.adminAnnouncementsState.collectAsStateWithLifecycle()
     val appConfigState by viewModel.appConfigState.collectAsStateWithLifecycle()
     val allDonationHistoryState by viewModel.allDonationHistoryState.collectAsStateWithLifecycle()
+    val allUserRolesState by viewModel.allUserRolesState.collectAsStateWithLifecycle()
 
     val donorsListState = rememberLazyListState()
     val strings = remember(language) { getMbdStrings(language) }
@@ -341,7 +342,7 @@ fun MbdAuthenticatedShell(
                 userBloodGroup = displayBloodGroup,
                 openRequestsCount = openRequestsCount,
                 currentScreen = currentScreen,
-                isAdmin = viewModel.isAdminUser,
+                isAdmin = viewModel.canAccessAdminPanel,
                 onSelectScreen = { target ->
                     scope.launch { drawerState.close() }
                     viewModel.navigateTo(target)
@@ -915,7 +916,7 @@ fun MbdAuthenticatedShell(
                                 isAdminUser = viewModel.isAdminUser,
                                 isSaving = isSaving,
                                 onBack = { viewModel.navigateBack() },
-                                onSaveProfile = { name, phone, bg, area, addr, lastDate, availStatus, pub, notif, total, donType, intervalDays, showPhone, shareArea, showHistory ->
+                                onSaveProfile = { name, phone, bg, area, addr, lastDate, availStatus, pub, notif, total, donType, intervalDays, showPhone, shareArea, showHistory, age, gender ->
                                     viewModel.saveProfileAndDonorStatus(
                                         fullName = name,
                                         phoneNumber = phone,
@@ -931,7 +932,9 @@ fun MbdAuthenticatedShell(
                                         eligibilityIntervalDays = intervalDays,
                                         showPhonePublicly = showPhone,
                                         shareLocationArea = shareArea,
-                                        showDonationHistoryPublicly = showHistory
+                                        showDonationHistoryPublicly = showHistory,
+                                        age = age,
+                                        gender = gender
                                     )
                                 },
                                 onRecordBloodDonation = { date, time, type, customTypeName, procConfirm, interval, ruleVer, hosp, loc, rec, bg, notes, verStatus ->
@@ -1036,10 +1039,12 @@ fun MbdAuthenticatedShell(
                                 announcementsState = adminAnnouncementsState,
                                 appConfig = appConfigState,
                                 eligibilityRules = eligibilityRules,
+                                allUserRoles = allUserRolesState,
                                 onBanUser = { uid, reason -> viewModel.banUser(uid, reason) },
                                 onUnbanUser = { uid -> viewModel.unbanUser(uid) },
                                 onDisableOrRestoreUser = { uid, disable -> viewModel.disableOrRestoreUser(uid, disable) },
                                 onDeleteUser = { uid -> viewModel.deleteUserAccount(uid) },
+                                onAssignRole = { targetUid, role, perms -> viewModel.assignRoleToUser(targetUid, role, perms) },
                                 onUpdateReportStatus = { rId, status, notes -> viewModel.updateReportStatus(rId, status, notes) },
                                 onModerateRequest = { rId, status, reason -> viewModel.adminModerateBloodRequest(rId, status, reason) },
                                 onVerifyDonationRecord = { rId, status, notes -> viewModel.adminVerifyDonationRecord(rId, status, notes) },

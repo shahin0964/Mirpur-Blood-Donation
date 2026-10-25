@@ -15,6 +15,7 @@ import com.example.data.model.DonorProfile
 import com.example.data.model.EligibilityRule
 import com.example.data.model.LiveLocationSession
 import com.example.data.model.UserProfile
+import com.example.data.model.UserRoleAssignment
 import com.example.data.repository.MbdRepository
 import com.example.ui.components.DonationCountdownEngine
 import com.example.ui.theme.MbdPreferencesManager
@@ -87,8 +88,47 @@ class MbdViewModel(
     )
     val isOwnerAdmin: StateFlow<Boolean> = _isDynamicAdmin.asStateFlow()
 
+    val currentUserRoleState: StateFlow<UserRoleAssignment?> = if (isGuest) {
+        flowOf(
+            if (defaultEmail.equals("md.shahin0962@gmail.com", ignoreCase = true)) {
+                UserRoleAssignment(userId = currentUserId, role = "owner")
+            } else {
+                UserRoleAssignment(userId = currentUserId, role = "user")
+            }
+        ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
+    } else {
+        repository.observeUserRoleAssignment(currentUserId)
+            .catch { emit(null) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
+    }
+
+    val allUserRolesState: StateFlow<List<UserRoleAssignment>> = if (isGuest) {
+        flowOf(emptyList<UserRoleAssignment>())
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
+    } else {
+        repository.observeAllUserRoles()
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), emptyList())
+    }
+
+    val canAccessAdminPanel: Boolean
+        get() {
+            if (defaultEmail.equals("md.shahin0962@gmail.com", ignoreCase = true)) return true
+            val assignment = currentUserRoleState.value
+            if (assignment != null) {
+                return assignment.canAccessAdminPanel()
+            }
+            return _isDynamicAdmin.value
+        }
+
     val isAdminUser: Boolean
-        get() = _isDynamicAdmin.value
+        get() = canAccessAdminPanel
+
+    fun hasPermission(perm: String): Boolean {
+        if (defaultEmail.equals("md.shahin0962@gmail.com", ignoreCase = true)) return true
+        val assignment = currentUserRoleState.value ?: return _isDynamicAdmin.value
+        return assignment.hasPermission(perm)
+    }
 
     private val _adminSubSection = MutableStateFlow(AdminSubSection.DASHBOARD)
     val adminSubSection: StateFlow<AdminSubSection> = _adminSubSection.asStateFlow()
@@ -2452,6 +2492,50 @@ class MbdViewModel(
     }
 
     // Admin Control Panel Operations
+    fun assignRoleToUser(
+        targetUserId: String,
+        role: String,
+        permissions: List<String>,
+        onSuccess: () -> Unit = {}
+    ) {
+        if (!hasPermission("manage_users")) {
+            _statusMessage.value = if (_language.value == "bn") {
+                "ইউজার পারমিশন পরিবর্তনের অধিকার আপনার নেই।"
+            } else {
+                "You do not have permission to manage user roles."
+            }
+            return
+        }
+        if (isGuest) {
+            _statusMessage.value = if (_language.value == "bn") {
+                "গেস্ট মোডে ভূমিকা পরিবর্তন সংরক্ষিত হয়েছে"
+            } else {
+                "User role updated in guest mode"
+            }
+            onSuccess()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.assignUserRole(
+                    targetUserId = targetUserId,
+                    role = role,
+                    permissions = permissions,
+                    adminUid = currentUserId,
+                    adminEmail = defaultEmail
+                )
+                _statusMessage.value = if (_language.value == "bn") {
+                    "ইউজারের ভূমিকা ও পারমিশন সফলভাবে আপডেট করা হয়েছে!"
+                } else {
+                    "User role and permissions updated successfully!"
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                _statusMessage.value = e.localizedMessage ?: "Failed to assign user role"
+            }
+        }
+    }
+
     fun banUser(userId: String, reason: String) {
         val trimmed = reason.trim()
         if (isGuest) {
