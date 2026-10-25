@@ -1,0 +1,261 @@
+{
+  "version": "1.0",
+  "entities": {
+    "UserProfile": {
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "area": { "type": "string" },
+        "address": { "type": "string" },
+        "lastDonationDate": { "type": "string" },
+        "lastDonationTime": { "type": "string" },
+        "nextEligibleDate": { "type": "string" },
+        "donationType": { "type": "string" },
+        "customDonationTypeName": { "type": "string" },
+        "eligibilityIntervalDays": { "type": "integer" },
+        "ruleVersion": { "type": "string" },
+        "wholeBloodCount": { "type": "integer" },
+        "plateletsCount": { "type": "integer" },
+        "plasmaCount": { "type": "integer" },
+        "otherDonationCount": { "type": "integer" },
+        "availabilityStatus": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "notificationsEnabled": { "type": "boolean" },
+        "language": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "fullName", "email", "phoneNumber", "bloodGroup"]
+    },
+    "DonorProfile": {
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "area": { "type": "string" },
+        "address": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "availabilityStatus": { "type": "string" },
+        "lastDonationDate": { "type": "string" },
+        "lastDonationTime": { "type": "string" },
+        "nextEligibleDate": { "type": "string" },
+        "donationType": { "type": "string" },
+        "customDonationTypeName": { "type": "string" },
+        "eligibilityIntervalDays": { "type": "integer" },
+        "ruleVersion": { "type": "string" },
+        "totalDonations": { "type": "integer" },
+        "wholeBloodCount": { "type": "integer" },
+        "plateletsCount": { "type": "integer" },
+        "plasmaCount": { "type": "integer" },
+        "otherDonationCount": { "type": "integer" },
+        "visibility": { "type": "string" },
+        "age": { "type": "string" },
+        "gender": { "type": "string" },
+        "showPhonePublicly": { "type": "boolean" },
+        "shareLocationArea": { "type": "boolean" },
+        "showDonationHistoryPublicly": { "type": "boolean" },
+        "isPhoneVerified": { "type": "boolean" },
+        "isAdminReviewed": { "type": "boolean" },
+        "isReported": { "type": "boolean" },
+        "reportReason": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "fullName", "bloodGroup", "phoneNumber", "visibility"]
+    },
+    "BloodRequest": {
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "requesterName": { "type": "string" },
+        "patientName": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "bagsNeeded": { "type": "integer" },
+        "hospitalName": { "type": "string" },
+        "location": { "type": "string" },
+        "contactNumber": { "type": "string" },
+        "neededDateTime": { "type": "string" },
+        "donationType": { "type": "string" },
+        "urgency": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string" },
+        "visibility": { "type": "string" },
+        "authorizedDonorId": { "type": "string" },
+        "authorizedDonorName": { "type": "string" },
+        "liveSessionActive": { "type": "boolean" },
+        "liveSessionExpiresAt": { "type": "integer" },
+        "isReported": { "type": "boolean" },
+        "reportReason": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "patientName", "bloodGroup", "hospitalName", "contactNumber", "status"]
+    },
+    "LiveLocationSession": {
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string" },
+        "requesterId": { "type": "string" },
+        "requesterName": { "type": "string" },
+        "authorizedDonorId": { "type": "string" },
+        "authorizedDonorName": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "accuracyMeters": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "expiresAtEpochMs": { "type": "integer" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["requestId", "requesterId", "authorizedDonorId", "latitude", "longitude"]
+    },
+    "DonationRecord": {
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "donorName": { "type": "string" },
+        "hospitalName": { "type": "string" },
+        "location": { "type": "string" },
+        "recipientName": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "donationDate": { "type": "string" },
+        "donationTime": { "type": "string" },
+        "donationType": { "type": "string" },
+        "customDonationTypeName": { "type": "string" },
+        "procedureConfirmation": { "type": "string" },
+        "eligibilityIntervalDays": { "type": "integer" },
+        "ruleVersion": { "type": "string" },
+        "nextEligibleDate": { "type": "string" },
+        "verificationStatus": { "type": "string" },
+        "visibility": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "donationDate", "bloodGroup", "verificationStatus"]
+    },
+    "EligibilityRule": {
+      "type": "object",
+      "properties": {
+        "donationType": { "type": "string" },
+        "titleBn": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "intervalDays": { "type": "integer" },
+        "crossTypeMinGapDays": { "type": "integer" },
+        "isVerifiedRule": { "type": "boolean" },
+        "ruleVersion": { "type": "string" },
+        "medicalGuidanceBn": { "type": "string" },
+        "medicalGuidanceEn": { "type": "string" },
+        "updatedByEmail": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["donationType", "intervalDays", "isVerifiedRule"]
+    },
+    "AdminRole": {
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "addedAt": { "type": "timestamp" }
+      },
+      "required": ["email"]
+    },
+    "AdminUserBan": {
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bannedByUid": { "type": "string" },
+        "bannedByEmail": { "type": "string" },
+        "reason": { "type": "string" },
+        "bannedAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "bannedByUid", "reason"]
+    },
+    "AdminReport": {
+      "type": "object",
+      "properties": {
+        "reporterUid": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "reportedId": { "type": "string" },
+        "reportedType": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string" },
+        "adminNotes": { "type": "string" },
+        "resolvedBy": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "resolvedAt": { "type": "timestamp" }
+      },
+      "required": ["reporterUid", "reportedId", "description", "status"]
+    },
+    "AdminLog": {
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "actionType": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["adminUid", "actionType", "targetId", "status"]
+    },
+    "AdminAnnouncement": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "isEmergency": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "createdByEmail": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["title", "message", "isActive"]
+    },
+    "AppConfig": {
+      "type": "object",
+      "properties": {
+        "emergencyBannerText": { "type": "string" },
+        "emergencyBannerActive": { "type": "boolean" },
+        "supportPhone": { "type": "string" },
+        "supportEmail": { "type": "string" },
+        "privacyPolicyUrl": { "type": "string" },
+        "termsUrl": { "type": "string" },
+        "latestAppVersion": { "type": "string" },
+        "minRequiredVersion": { "type": "string" },
+        "latestVersionCode": { "type": "integer" },
+        "minSupportedVersionCode": { "type": "integer" },
+        "downloadUrl": { "type": "string" },
+        "releaseNotesBn": { "type": "string" },
+        "releaseNotesEn": { "type": "string" },
+        "updateMessage": { "type": "string" },
+        "isUpdateMandatory": { "type": "boolean" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["supportEmail"]
+    }
+  },
+  "collections": {
+    "users": { "entity": "UserProfile", "documentId": "{userId}" },
+    "donors": { "entity": "DonorProfile", "documentId": "{userId}" },
+    "blood_requests": { "entity": "BloodRequest", "documentId": "{requestId}" },
+    "live_locations": { "entity": "LiveLocationSession", "documentId": "{requestId}" },
+    "donation_history": { "entity": "DonationRecord", "documentId": "{recordId}" },
+    "eligibility_rules": { "entity": "EligibilityRule", "documentId": "{ruleId}" },
+    "admins": { "entity": "AdminRole", "documentId": "{userId}" },
+    "bans": { "entity": "AdminUserBan", "documentId": "{userId}" },
+    "reports": { "entity": "AdminReport", "documentId": "{reportId}" },
+    "admin_logs": { "entity": "AdminLog", "documentId": "{logId}" },
+    "admin_announcements": { "entity": "AdminAnnouncement", "documentId": "{announcementId}" },
+    "app_config": { "entity": "AppConfig", "documentId": "{configId}" }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "MBD",
+  "description": "Mirpur Blood Donation (MBD) — Bangla & English blood donor registration, search, and emergency blood requests for Mirpur, Dhaka.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

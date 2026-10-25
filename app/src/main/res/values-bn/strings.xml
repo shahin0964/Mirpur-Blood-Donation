@@ -1,0 +1,44 @@
+<resources>
+    <string name="app_name">MBD</string>
+    <string name="app_short_name">MBD 🩸</string>
+    <string name="app_full_name">মিরপুর ব্লাড ডোনেশন (Mirpur Blood Donation)</string>
+    <string name="app_tagline_bn">রক্ত দিন • জীবন বাঁচান</string>
+    <string name="app_tagline_en">Donate Blood • Save Lives</string>
+    <string name="sign_in_google">Google দিয়ে সাইন ইন করুন</string>
+    <string name="get_started">শুরু করুন</string>
+    <string name="home_tab">হোম</string>
+    <string name="donors_tab">রক্তদাতা</string>
+    <string name="requests_tab">আবেদন</string>
+    <string name="profile_tab">প্রোফাইল</string>
+    <string name="find_donors">রক্তদাতা খুঁজুন</string>
+    <string name="request_blood">রক্তের আবেদন</string>
+    <string name="my_donations">আমার রক্তদান</string>
+    <string name="submit_request">আবেদন জমা দিন</string>
+    <string name="call_donor">কল</string>
+
+    <!-- Settings & Preferences -->
+    <string name="settings_title">সেটিংস</string>
+    <string name="settings_language_title">ভাষা নির্বাচন</string>
+    <string name="settings_language_desc">অ্যাপের ভাষা বাংলা বা ইংরেজি নির্বাচন করুন</string>
+    <string name="settings_language_dialog_title">ভাষা নির্বাচন করুন</string>
+    <string name="settings_language_option_bn">বাংলা (Bangla)</string>
+    <string name="settings_language_option_en">English</string>
+    <string name="settings_theme_title">থিম</string>
+    <string name="settings_theme_desc">লাইট, ডার্ক অথবা সিস্টেম ডিফল্ট থিম নির্বাচন করুন</string>
+    <string name="settings_theme_dialog_title">থিম নির্বাচন করুন</string>
+    <string name="settings_theme_dark">Dark / Black (ডার্ক)</string>
+    <string name="settings_theme_light">White / Light (হোয়াইট / লাইট)</string>
+    <string name="settings_theme_system">System Default (সিস্টেম ডিফল্ট)</string>
+    <string name="settings_update_title">অ্যাপ আপডেট</string>
+    <string name="settings_update_desc">বর্তমান সংস্করণ এবং নতুন আপডেট যাচাই করুন</string>
+    <string name="settings_update_up_to_date">আপনার অ্যাপটি সর্বশেষ সংস্করণে আছে</string>
+    <string name="settings_update_check_btn">আপডেট চেক করুন (Check for Updates)</string>
+    <string name="settings_update_now_btn">এখনই আপডেট করুন (Update Now)</string>
+    <string name="settings_about_title">অ্যাপ সম্পর্কে</string>
+    <string name="settings_about_desc">অ্যাপের পরিচিতি, লক্ষ্য, গোপনীয়তা নীতি ও লাইসেন্স</string>
+    <string name="about_mission_text">Connecting blood donors with people who need blood</string>
+    <string name="about_privacy_policy">গোপনীয়তা নীতি (Privacy Policy)</string>
+    <string name="about_terms_conditions">ব্যবহারের শর্তাবলী (Terms and Conditions)</string>
+    <string name="about_open_source_licenses">ওপেন-সোর্স লাইসেন্স (Open-Source Licenses)</string>
+    <string name="about_copyright">© ২০২৬ Mirpur Blood Donation (MBD 🩸)। সর্বস্বত্ব সংরক্ষিত।</string>
+</resources>
